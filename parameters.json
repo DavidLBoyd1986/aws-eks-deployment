@@ -1,0 +1,19 @@
+[
+    {
+      "ParameterKey": "personalPublicIP",
+      "ParameterValue": "111.22.33.444"
+    },
+    {
+      "ParameterKey": "userName",
+      "ParameterValue": "BastionUser"
+    },
+    {
+      "ParameterKey": "userPass",
+      "ParameterValue": "ChangeThisNow!!!!"
+    },
+    {
+      "ParameterKey": "SubnetId",
+      "ParameterValue": "ssh-rsa blahblahblah BastionUser@yourcomputer"
+    }
+  ]
+  
