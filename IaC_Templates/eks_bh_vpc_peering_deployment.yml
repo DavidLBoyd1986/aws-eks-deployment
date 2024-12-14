@@ -1,0 +1,38 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to create a VPC Peering connection between two VPCs.
+
+Resources:
+
+  # Who Requests/Accepts the VPC Peering Connection
+  EKSHackingVPCPeeringConnection:
+    Type: AWS::EC2::VPCPeeringConnection
+    Properties:
+      VpcId: !ImportValue BHVpcId
+      PeerVpcId: !ImportValue EKSHackingVpcId
+      PeerOwnerId: !Ref "AWS::AccountId" # Dynamically get Account ID
+      #PeerRegion: us-east-2 # Region of Peer VPC
+      Tags:
+        - Key: Name
+          Value: EKSHackingVpcPeering
+        - Key: Deployment
+          Value: IaC
+        - Key: CostMoney
+          Value: false
+        - Key: CanDelete
+          Value: false
+
+  RouteToEKSVPC:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !ImportValue EKSVpcPublicRouteTable
+      DestinationCidrBlock: !ImportValue EKSVpcCidrBlock
+      VpcPeeringConnectionId: !Ref EKSHackingVPCPeeringConnection
+
+  RouteToBHVPC:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !ImportValue BHVpcPublicRouteTable
+      DestinationCidrBlock: !ImportValue BHVpcCidrBlock
+      VpcPeeringConnectionId: !Ref EKSHackingVPCPeeringConnection
+

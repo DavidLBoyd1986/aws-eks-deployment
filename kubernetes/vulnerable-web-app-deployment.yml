@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vulnerable-web-app-deployment
+  namespace: vulnerable-web-app
+  labels:
+    app: vulnerable-web-app-webgoat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vulnerable-web-app-webgoat
+  template:
+    metadata:
+      labels:
+        app: vulnerable-web-app-webgoat
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - arm64
+      containers:
+      - name: vulnerable-web-app
+        image: webgoat/webgoat
+        ports:
+        - name: http
+          containerPort: 8080
+        imagePullPolicy: IfNotPresent
+      nodeSelector:
+        kubernetes.io/os: linux

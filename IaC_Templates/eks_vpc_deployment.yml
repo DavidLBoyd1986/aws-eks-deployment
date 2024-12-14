@@ -1,0 +1,378 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Amazon EKS VPC for Web App Testing - Only Private subnet'
+
+Parameters:
+
+  VpcBlock:
+    Type: String
+    Default: 192.168.1.0/24
+    Description: The CIDR range for the VPC. This should be a valid private (RFC 1918) CIDR range.
+
+  PublicSubnetBlock:
+    Type: String
+    Default: 192.168.1.0/25
+    Description: CidrBlock for public subnet 01 within the VPC
+
+  PrivateSubnet01Block:
+    Type: String
+    Default: 192.168.1.128/26
+    Description: CidrBlock for private subnet 01 within the VPC
+
+  PrivateSubnet02Block:
+    Type: String
+    Default: 192.168.1.192/26
+    Description: CidrBlock for private subnet 02 within the VPC
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "Worker Network Configuration"
+        Parameters:
+          - VpcBlock
+          - PublicSubnetBlock
+          - PrivateSubnet01Block
+          - PrivateSubnet02Block
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock:  !Ref VpcBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-VPC'
+
+  InternetGateway:
+    Type: "AWS::EC2::InternetGateway"
+
+  VPCGatewayAttachment:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Public Subnets
+      - Key: Network
+        Value: Public
+
+  PrivateRouteTable01:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Private Subnet AZ1
+      - Key: Network
+        Value: Private01
+
+  PrivateRouteTable02:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Private Subnet AZ2
+      - Key: Network
+        Value: Private02
+
+  PublicRoute:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PrivateRoute01:
+    DependsOn:
+      - VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable01
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateRoute02:
+    DependsOn:
+      - VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable02
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  NatGateway:
+    DependsOn:
+      - VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NatGatewayEIP1.AllocationId'
+      SubnetId: !Ref PublicSubnet
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-NatGatewayAZ1'
+
+  NatGatewayEIP1:
+    DependsOn:
+    - VPCGatewayAttachment
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      MapPublicIpOnLaunch: true
+      AvailabilityZone:
+        Fn::Select:
+        - '0'
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock:
+        Ref: PublicSubnetBlock
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-PublicSubnet"
+      - Key: kubernetes.io/role/elb
+        Value: 1
+
+  PrivateSubnet01:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - '0'
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock:
+        Ref: PrivateSubnet01Block
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-PrivateSubnet01"
+      - Key: kubernetes.io/role/internal-elb
+        Value: 1
+
+  PrivateSubnet02:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Private Subnet 02
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - '1'
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock:
+        Ref: PrivateSubnet02Block
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-PrivateSubnet02"
+      - Key: kubernetes.io/role/internal-elb
+        Value: 1
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateSubnet01RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet01
+      RouteTableId: !Ref PrivateRouteTable01
+
+  PrivateSubnet02RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet02
+      RouteTableId: !Ref PrivateRouteTable02
+
+# Did not need to use - CAN DELETE!
+  FullAccessSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Full Access Security Group to just get the Nodes deployed and connected
+      VpcId: !Ref VPC
+      GroupName: FullAccessSecurityGroup 
+      SecurityGroupEgress:
+        - IpProtocol: -1 
+          CidrIp: 0.0.0.0/0   # Allow all outbound traffic
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0 # Allow inbound traffic from personal IP
+
+# Did not need to use - CAN DELETE!
+  FakeDefaultVPCSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Fake Default Security Group that simulates the regular default SG
+      VpcId: !Ref VPC
+      GroupName: FakeDefaultVPCSecurityGroup 
+      SecurityGroupEgress:
+        - IpProtocol: -1 
+          CidrIp: 192.168.1.0/24
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: 192.168.1.0/24
+
+  ControlPlaneSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: EKS Control Plane Security Group
+      VpcId: !Ref VPC
+      GroupName: ControlPlaneSecurityGroup 
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443 
+          CidrIp: 0.0.0.0/0
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443 
+          CidrIp: 192.168.1.0/24
+
+  WorkerNodeSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Worker Node Security Group
+      VpcId: !Ref VPC
+      GroupName: WorkerNodeSecurityGroup 
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 192.168.1.0/24
+        - IpProtocol: tcp
+          FromPort: 10250
+          ToPort: 10250
+          CidrIp: 192.168.1.0/24
+        - IpProtocol: udp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 30000
+          ToPort: 32767
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Load Balancer Security Group
+      VpcId: !Ref VPC
+      GroupName: LoadBalancerSecurityGroup
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+Outputs:
+
+  SubnetIds:
+    Description: Subnets IDs in the VPC
+    Value: !Join [ ",", [ !Ref PrivateSubnet01, !Ref PrivateSubnet02 ] ]
+
+  PublicSubnet:
+    Description: The subnet ID to use for public web servers
+    Value:
+      Ref: PublicSubnet
+    Export:
+      Name: EKSHackingPublicSubnet
+
+  PrivateSubnet01:
+    Description: The subnet ID to use for private web servers
+    Value:
+      Ref: PrivateSubnet01
+    Export:
+      Name: EKSHackingPrivateSubnetOne
+
+  PrivateSubnet02:
+    Description: The subnet ID to use for private web servers
+    Value:
+      Ref: PrivateSubnet02
+    Export:
+      Name: EKSHackingPrivateSubnetTwo
+
+# CAN DELETE - Only used for testing
+  FullAccessSecurityGroup:
+    Description: Full Access Security Group to just get the Nodes deployed and connected
+    Value: !Ref FullAccessSecurityGroup
+    Export:
+      Name: EKSHackingFullAccessSecurityGroup
+
+# CAN DELETE - Only used for testing
+  FakeDefaultVPCSecurityGroup:
+    Description: Fake Default Security Group that simulates the regular default SG
+    Value: !Ref FakeDefaultVPCSecurityGroup
+    Export:
+      Name: EKSHackingFakeDefaultVPCSecurityGroup
+
+  ControlPlaneSecurityGroup:
+    Description: Security group for the cluster control plane communication with worker nodes
+    Value: !Ref ControlPlaneSecurityGroup
+    Export:
+      Name: EKSHackingControlPlaneSecurityGroup
+
+  WorkerNodeSecurityGroup:
+    Description: Security group for the cluster worker nodes
+    Value: !Ref WorkerNodeSecurityGroup
+    Export:
+      Name: EKSHackingWorkerNodeSecurityGroup
+
+  LoadBalancerSecurityGroup:
+    Description: Security group for the Load Balancer routing traffic to the Cluster
+    Value: !Ref LoadBalancerSecurityGroup
+    Export:
+      Name: EKSHackingLoadBalancerSecurityGroup
+
+  EksVpcId:
+    Description: The VPC Id
+    Value: !Ref VPC
+    Export:
+      Name: EKSHackingVpcId
+ 
+  VpcBlock:
+    Description: CIDR for VPC Block
+    Value: !Ref VpcBlock
+    Export:
+      Name: EKSVpcCidrBlock
+
+  PublicRouteTable:
+    Description: The Public Route Table for this VPC
+    Value: !Ref PublicRouteTable
+    Export:
+      Name: EKSVpcPublicRouteTable

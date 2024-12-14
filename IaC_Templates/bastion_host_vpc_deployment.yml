@@ -1,0 +1,169 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Amazon EKS VPC for Web App Testing - Private and Public subnets'
+
+Parameters:
+
+  BHVpcBlock:
+    Type: String
+    Default: 192.168.2.0/24
+    Description: The CIDR range for the VPC. This should be a valid private (RFC 1918) CIDR range.
+
+  BHPublicSubnet01Block:
+    Type: String
+    Default: 192.168.2.0/25
+    Description: CidrBlock for public subnet 01 within the VPC
+
+  BHPublicSubnet02Block:
+    Type: String
+    Default: 192.168.2.128/25
+    Description: CidrBlock for public subnet 02 within the VPC
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "Worker Network Configuration"
+        Parameters:
+          - BHVpcBlock
+          - BHPublicSubnet01Block
+          - BHPublicSubnet02Block
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock:  !Ref BHVpcBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-VPC'
+
+  InternetGateway:
+    Type: "AWS::EC2::InternetGateway"
+
+  VPCGatewayAttachment:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Public Subnets
+      - Key: Network
+        Value: Public
+
+  PublicRoute:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  BHPublicSubnet01:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 01
+    Properties:
+      MapPublicIpOnLaunch: true
+      AvailabilityZone:
+        Fn::Select:
+        - '0'
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock:
+        Ref: BHPublicSubnet01Block
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-BHPublicSubnet01"
+
+  BHPublicSubnet02:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      Comment: Subnet 02
+    Properties:
+      MapPublicIpOnLaunch: true
+      AvailabilityZone:
+        Fn::Select:
+        - '1'
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock:
+        Ref: BHPublicSubnet02Block
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-BHPublicSubnet02"
+
+  BHPublicSubnet01RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref BHPublicSubnet01
+      RouteTableId: !Ref PublicRouteTable
+
+  BHPublicSubnet02RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref BHPublicSubnet02
+      RouteTableId: !Ref PublicRouteTable
+
+  BHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Cluster communication with worker nodes
+      VpcId: !Ref VPC
+
+Outputs:
+
+  SubnetIds:
+    Description: Subnets IDs in the VPC
+    Value: !Join [ ",", [ !Ref BHPublicSubnet01, !Ref BHPublicSubnet02 ] ]
+
+  BHPublicSubnet01:
+    Description: The subnet ID to use for public web servers
+    Value:
+      Ref: BHPublicSubnet01
+    Export:
+      Name: BHPublicSubnetOne
+
+  BHPublicSubnet02:
+    Description: The subnet ID to use for public web servers
+    Value:
+      Ref: BHPublicSubnet02
+    Export:
+      Name: BHPublicSubnetTwo
+
+  SecurityGroups:
+    Description: Security group for the Bastion Hosts
+    Value: !Join [ ",", [ !Ref BHSecurityGroup ] ]
+    Export:
+      Name: BHSecurityGroup
+
+  VpcId:
+    Description: The VPC Id
+    Value: !Ref VPC
+    Export:
+      Name: BHVpcId
+  
+  BHVpcBlock:
+    Description: The CIDR Block for this VPC
+    Value: !Ref BHVpcBlock
+    Export:
+      Name: BHVpcCidrBlock
+  
+  PublicRouteTable:
+    Description: The Public Route Table for this VPC
+    Value: !Ref PublicRouteTable
+    Export:
+      Name: BHVpcPublicRouteTable

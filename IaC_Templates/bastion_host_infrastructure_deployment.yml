@@ -1,0 +1,116 @@
+---
+Parameters:
+
+  personalPublicIP:
+    Type: String
+    Description: Public IP of User connecting to the Bastion Hosts.
+    # Must be added to cloudformation command in build_script.sh that deploys this stack.
+  
+  userName:
+    Type: String
+    Description: IAM User added to the Bastion Hosts.
+    # Must be added to cloudformation command in build_script.sh that deploys this stack.
+
+  userPass:
+    Type: String
+    Description: Password for the IAM User added to the Bastion Hosts.
+    # Must be added to cloudformation command in build_script.sh that deploys this stack.
+
+  bastionHostPublicKey:
+    Type: String
+    Description: The public ssh key material for user added to the Bastion Hosts
+    # Must be added to cloudformation command in build_script.sh that deploys this stack.
+
+Resources:
+
+  bastionHostKeyPair:
+    Type: AWS:EC2::KeyPair
+    Properties:
+      KeyName: bastionHostKeyPair
+      PublicKeyMaterial: !Ref bastionHostPublicKey
+
+  linuxBastionHost:
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: ami-0c80e2b6ccb9ad6d1 # This needs updated regularly
+      InstanceType: t2.micro
+      SubnetId: !ImportValue BHPublicSubnetOne
+      SecurityGroupIds:
+        - !Ref bastionHostSecurityGroup
+      KeyName: bastionHostKeyPair
+      Tags: 
+      - Key: Deployment
+        Value: IaC
+      - Key: CostMoney
+        Value: True
+      - Key: CanDelete
+        Value: True
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Create a normal user with admin permissions
+          useradd -m ${userName}
+          echo "${userName} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+          mkdir -p /home/${userName}/.ssh
+          echo "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQE..." >> /home/${userName}/.ssh/authorized_keys
+          chmod 600 /home/${userName}/.ssh/authorized_keys
+          chown -R ${userName}:${userName} /home/${userName}/.ssh
+
+  windowsBastionHost:
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: ami-0e53ddf766d044cb0 # This needs updated regularly
+      InstanceType: t3.medium
+      SubnetId: !ImportValue BHPublicSubnetOne
+      SecurityGroupIds:
+        - !Ref bastionHostSecurityGroup
+      KeyName: bastionHostKeyPair
+      Tags: 
+      - Key: Deployment
+        Value: IaC
+      - Key: CostMoney
+        Value: True
+      - Key: CanDelete
+        Value: True
+      UserData:
+        Fn::Base64: !Sub |
+          <powershell>
+          # Create a normal user with admin permissions
+          net user ${userName} ${userPass} /add
+          net localgroup Administrators ${userName} /add
+          </powershell>
+
+  bastionHostSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: String
+      GroupName: String
+      VpcId: !ImportValue BHVpcId
+      SecurityGroupEgress:
+        - IpProtocol: -1 
+          CidrIp: 0.0.0.0/0   # Allow all outbound traffic
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: !Ref personalPublicIP # Allow inbound traffic from personal IP
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref personalPublicIP # Allow inbound traffic from personal IP
+      Tags: 
+      - Key: Deployment
+        Value: IaC
+      - Key: CostMoney
+        Value: False 
+      - Key: CanDelete
+        Value: True  # Allows connection to cloud resources using ssh and rdp
+
+Outputs:
+  linuxBastionHostPublicDNS:
+    Value: !GetAtt linuxBastionHost.PublicDnsName
+    Description: Public DNS name of the Linux Bastion Host
+
+  windowsBastionHostPublicDNS:
+    Value: !GetAtt windowsBastionHost.PublicDnsName
+    Description: Public DNS name of the Windows Bastion Host

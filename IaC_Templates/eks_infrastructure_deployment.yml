@@ -1,0 +1,157 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'EKS VPC with webgoat for hacking.'
+
+Parameters:
+  ClusterName:
+    Type: String
+    Default: EKSHackingCluster
+    Description: Name of the EKS Cluster
+  NodeGroupName:
+    Type: String
+    Default: EKSHackingNodeGroup
+    Description: Name of the EKS NodeGroup
+  AmiId:
+    Type: String
+    Default: ami-07bf4230c9e443622
+    Description: AMI ID used for Nodes
+  DesiredCapacity:
+    Type: Number
+    Default: 2
+    Description: Desired number of worker nodes
+  MaxSize:
+    Type: Number
+    Default: 4
+    Description: Max number of worker nodes
+  MinSize:
+    Type: Number
+    Default: 1
+    Description: Min number of worker nodes
+
+Resources:
+  EKSHackingCluster:
+    Type: AWS::EKS::Cluster
+    Properties:
+      Name: !Ref ClusterName
+      AccessConfig:
+        AuthenticationMode: API_AND_CONFIG_MAP
+        BootstrapClusterCreatorAdminPermissions: true
+      ResourcesVpcConfig:
+        EndpointPrivateAccess: true
+        EndpointPublicAccess: false
+        SubnetIds:
+          - !ImportValue EKSHackingPublicSubnet
+          - !ImportValue EKSHackingPrivateSubnetOne
+          - !ImportValue EKSHackingPrivateSubnetTwo
+        SecurityGroupIds:
+          - !ImportValue EKSHackingControlPlaneSecurityGroup
+          - !ImportValue EKSHackingWorkerNodeSecurityGroup
+      RoleArn: !ImportValue EKSHackingClusterRoleARN
+      Tags:
+      - Key: Deployment
+        Value: IaC 
+      - Key: CostMoney
+        Value: True
+      - Key: CanDelete
+        Value: True
+
+  EKSHackingNodeGroup:
+    DependsOn:
+      - EKSHackingCluster
+    Type: AWS::EKS::Nodegroup
+    Properties:
+      ClusterName: !Ref ClusterName
+      InstanceTypes: 
+        - t2.micro
+      NodegroupName: !Ref NodeGroupName
+      NodeRole: !ImportValue EKSHackingNodeRoleARN
+      ScalingConfig:
+        DesiredSize:  !Ref DesiredCapacity
+        MaxSize:  !Ref MaxSize
+        MinSize:  !Ref MinSize
+      Subnets: 
+          -  !ImportValue EKSHackingPublicSubnet
+          -  !ImportValue EKSHackingPrivateSubnetOne
+          -  !ImportValue EKSHackingPrivateSubnetTwo
+      LaunchTemplate:
+        Id: !Ref EKSHackingLaunchTemplate
+  
+  EKSHackingLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: EKSHackingLaunchTemplate
+      VersionDescription: "Bootstrap the Node, and Install the Cloud Agent."
+      LaunchTemplateData:
+        ImageId: !Ref AmiId
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              VolumeSize: 20
+        #Manually add in SGs after creation
+        SecurityGroupIds:
+          - !ImportValue EKSHackingControlPlaneSecurityGroup
+          - !ImportValue EKSHackingWorkerNodeSecurityGroup
+        KeyName: UserKeyPair
+        UserData:
+                Fn::Base64: !Sub |
+                    #!/bin/bash -xe
+
+                    # Bootstrap the Node - Register it to the EKS Cluster
+                    set -ex
+                    B64_CLUSTER_CA=$(aws eks describe-cluster --name ${ClusterName} --region us-east-2 --query cluster.certificateAuthority.data)
+                    B64_CLUSTER_CA=$(echo $B64_CLUSTER_CA | sed 's/"//g')
+                    API_SERVER_URL=$(aws eks describe-cluster --name ${ClusterName} --region us-east-2 --query cluster.endpoint)
+                    K8S_CLUSTER_DNS_IP=10.100.0.10
+
+                    /etc/eks/bootstrap.sh ${ClusterName} --kubelet-extra-args '--node-labels=eks.amazonaws.com/nodegroup-image=i${AmiId},eks.amazonaws.com/capacityType=ON_DEMAND,eks.amazonaws.com/nodegroup=${NodeGroupName} --max-pods=17' --b64-cluster-ca $B64_CLUSTER_CA --apiserver-endpoint $API_SERVER_URL --dns-cluster-ip $K8S_CLUSTER_DNS_IP --use-max-pods false
+
+#TODO - Needs fixed, the above hardcodes in 'EKSHackingCluster' as the clustername.
+# I had a !Sub in there, so I could probably fix it using that, testing it out
+
+  # Application Load Balancer
+  LoadBalancer:
+    DependsOn:
+      - EKSHackingCluster
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub "${ClusterName}-ALB"
+      Scheme: internal
+      Subnets:
+        - !ImportValue EKSHackingPrivateSubnetOne
+        - !ImportValue EKSHackingPrivateSubnetTwo
+      SecurityGroups:
+        - !ImportValue EKSHackingLoadBalancerSecurityGroup
+      Type: application
+
+  # Target Group for EKS Services
+  TargetGroup:
+    DependsOn:
+      - EKSHackingCluster
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub "${ClusterName}-TG"
+      VpcId: !ImportValue EKSHackingVpcId
+      Port: 8080
+      Protocol: HTTP
+      TargetType: ip
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: "/"
+      HealthCheckIntervalSeconds: 30
+
+  # Listener for Load Balancer
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 8080
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+Outputs:
+  TargetGroup:
+    Value: !Ref TargetGroup
+    Description: The ARN of the target group
+    Export:
+      Name: EKSHackingALBTargetGroupARN
