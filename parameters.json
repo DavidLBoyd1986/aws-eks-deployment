@@ -12,7 +12,7 @@
       "ParameterValue": "ChangeThisNow!!!!"
     },
     {
-      "ParameterKey": "SubnetId",
+      "ParameterKey": "bastionHostPublicKey",
       "ParameterValue": "ssh-rsa blahblahblah BastionUser@yourcomputer"
     }
   ]
