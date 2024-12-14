@@ -4,6 +4,12 @@ Generates a VPC with a Bastion Host, and a VPC running an EKS Cluster with the W
 
 The Bastion Host VPC will have a full VPC Peering connection with the EKS Cluster's VPC.
 
+IMPORTANT - I didn't add the Kali instance yet, and never will.
+            The end goal is to put a small ec2-instance instead of the bastion hosts.
+            This instance will route traffic from your on-prem kali to the private EKS Cluster
+            that is in a private subnet in it's own VPC.
+            That way you can hack away privately without exposing the vulnerable web application publicly.
+
 <h3>Prerequisites</h3>
 
 1. The aws-cli is installed and configured 
@@ -17,23 +23,11 @@ The Bastion Host VPC will have a full VPC Peering connection with the EKS Cluste
     - NOTE - You can also create the SSH Key yourself, and supply the public key
 
 
-3. Required Parameters added in build-script.sh:
+3. Required Parameters need added in parameters.json:
     - personalPublicIP
     - userName
     - userPass
     - bastionHostPublicKey
-
-    Example:
-
-    ```
-    echo "Deploy the BH Infrastructure stack - EC2 Instance with Security Groups"
-    aws cloudformation deploy --stack-name eks-hacking-bh-infrastructure-stack \
-        --template-file ./IaC_Templates/bastion_host_infrastructure_deployment.yml \
-        --parameters ParameterKey=personalPublicIP,ParameterValue=192.168.0.0 \
-            ParameterKey=userName,ParameterValue=BastionUser \
-            ParameterKey=userPass,ParameterValue=ChangeMeNow! \
-            ParameterKey=bastionHostPublicKey,ParameterValue=EnterPublicKeyHere \
-        --capabilities CAPABILITY_IAM
 
 TODO:
 - EKS Working with full automated deployment
