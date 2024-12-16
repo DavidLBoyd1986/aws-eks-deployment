@@ -11,7 +11,7 @@ Resources:
       VpcId: !ImportValue BHVpcId
       PeerVpcId: !ImportValue EKSHackingVpcId
       PeerOwnerId: !Ref "AWS::AccountId" # Dynamically get Account ID
-      #PeerRegion: us-east-2 # Region of Peer VPC
+      #PeerRegion: us-east-1 # Region of Peer VPC
       Tags:
         - Key: Name
           Value: EKSHackingVpcPeering

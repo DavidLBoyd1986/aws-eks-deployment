@@ -21,6 +21,12 @@ Parameters:
     Description: The public ssh key material for user added to the Bastion Hosts
     # Must be added to cloudformation command in build_script.sh that deploys this stack.
 
+  EKSPublicKey:
+    Type: String
+    Description: The public ssh key material for accessing EKS Nodes
+    # Must be added to cloudformation command in build_script.sh that deploys this stack.
+    # IMPORTANT - you will have to manually copy the private key to the bastion host to use it.
+
 Resources:
 
   bastionHostKeyPair:
@@ -28,6 +34,12 @@ Resources:
     Properties:
       KeyName: bastionHostKeyPair
       PublicKeyMaterial: !Ref bastionHostPublicKey
+
+  EKSKeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: EKSKeyPair
+      PublicKeyMaterial: !Ref EKSPublicKey
 
   linuxBastionHost:
     Type: AWS::EC2::Instance
@@ -120,3 +132,9 @@ Outputs:
     Description: The keypair used to access the Bastion Host
     Export:
       Name: bastionHostKeyPair
+
+  EKSKeyPair:
+    Value:  !Ref EKSKeyPair
+    Description: The keypair used to access the Bastion Host
+    Export:
+      Name: EKSKeyPair

@@ -26,6 +26,11 @@ aws cloudformation deploy --stack-name eks-hacking-eks-iam-stack \
     --template-file $SCRIPT_DIR/IaC_Templates/eks_iam_deployment.yml \
     --capabilities CAPABILITY_NAMED_IAM
 
+# Deploy the VPC Peering Connection Stack - Used to connect BH and EKS VPCs
+echo "Deploy VPC Peering Connection so Bastion Hosts can connect to EKS Cluster"
+aws cloudformation deploy --stack-name eks-hacking-eks-bh-vpc-peering-stack \
+    --template-file $SCRIPT_DIR/IaC_Templates/eks_bh_vpc_peering_deployment.yml
+
 echo "Deploy the EKS Infrastructure Stack"
 aws cloudformation deploy --stack-name eks-hacking-eks-infrastructure-stack \
     --template-file $SCRIPT_DIR/IaC_Templates/eks_infrastructure_deployment.yml
@@ -38,14 +43,10 @@ TARGET_GROUP_ARN=$(aws cloudformation describe-stacks \
                     --output text)
 echo $TARGET_GROUP_ARN
 
-# Deploy the VPC Peering Connection Stack - Used to connect BH and EKS VPCs
-echo "Deploy VPC Peering Connection so Bastion Hosts can connect to EKS Cluster"
-aws cloudformation deploy --stack-name eks-hacking-eks-bh-vpc-peering-stack \
-    --template-file $SCRIPT_DIR/IaC_Templates/eks_bh_vpc_peering_deployment.yml
-
 # Configure kubectl to connect to eks cluster.
 echo "Configuring kubectl to be able to communicate with cluster"
-aws eks update-kubeconfig --region us-east-2 --name EKSHackingCluster
+aws eks update-kubeconfig --region us-east-1 --name EKSHackingCluster
+# TODO - Region here needs updated manually
 
 # Verify kubectl configuration
 echo "verifying kubectl is installed"

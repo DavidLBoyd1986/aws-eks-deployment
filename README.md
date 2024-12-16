@@ -37,6 +37,18 @@ IMPORTANT - I didn't add the Kali instance yet, and never will.
     - userName
     - userPass
     - bastionHostPublicKey
+    - EKSPublicKey - This should be a separate key to access EKS Nodes from Bastion Hosts.
+                   - Requires manually copying the private key to bastion hosts.
+
+Troubleshooting:
+- Cluster Nodes aren't connecting to Cluster - FML
+    - Before I open up the SGs, I moved the VPC Peering connection before cluster deployment
+    - This should allow me to troubleshoot, and get the peering connection working
+
+- Cluster KeyPair:
+    - I don't want to add the Bastion Host KeyPair to the Cluster.
+    - So, I'm adding a EKSKeyPair manually to test with, and will remove it when done testing.
+    - Long term, need to add a User to the EKS Nodes that I can ssh in as.
 
 TODO:
 - Windows Bastion Host - Fix logging in remotely as configured user
