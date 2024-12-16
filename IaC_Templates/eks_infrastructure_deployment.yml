@@ -98,9 +98,9 @@ Resources:
 
                     # Bootstrap the Node - Register it to the EKS Cluster
                     set -ex
-                    B64_CLUSTER_CA=$(aws eks describe-cluster --name ${ClusterName} --region us-east-2 --query cluster.certificateAuthority.data)
+                    B64_CLUSTER_CA=$(aws eks describe-cluster --name ${ClusterName} --region us-east-1 --query cluster.certificateAuthority.data)
                     B64_CLUSTER_CA=$(echo $B64_CLUSTER_CA | sed 's/"//g')
-                    API_SERVER_URL=$(aws eks describe-cluster --name ${ClusterName} --region us-east-2 --query cluster.endpoint)
+                    API_SERVER_URL=$(aws eks describe-cluster --name ${ClusterName} --region us-east-1 --query cluster.endpoint)
                     K8S_CLUSTER_DNS_IP=10.100.0.10
 
                     /etc/eks/bootstrap.sh ${ClusterName} --kubelet-extra-args '--node-labels=eks.amazonaws.com/nodegroup-image=i${AmiId},eks.amazonaws.com/capacityType=ON_DEMAND,eks.amazonaws.com/nodegroup=${NodeGroupName} --max-pods=17' --b64-cluster-ca $B64_CLUSTER_CA --apiserver-endpoint $API_SERVER_URL --dns-cluster-ip $K8S_CLUSTER_DNS_IP --use-max-pods false
