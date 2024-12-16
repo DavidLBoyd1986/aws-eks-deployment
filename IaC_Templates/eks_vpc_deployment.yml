@@ -367,7 +367,7 @@ Outputs:
  
   VpcBlock:
     Description: CIDR for VPC Block
-    Value: !Ref VpcBlock
+    Value: !GetAtt VPC.CidrBlock
     Export:
       Name: EKSVpcCidrBlock
 

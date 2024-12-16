@@ -10,8 +10,7 @@ Resources:
     Properties:
       VpcId: !ImportValue BHVpcId
       PeerVpcId: !ImportValue EKSHackingVpcId
-      PeerOwnerId: !Ref "AWS::AccountId" # Dynamically get Account ID
-      #PeerRegion: us-east-1 # Region of Peer VPC
+      PeerRegion: us-east-1 # Region of Peer VPC
       Tags:
         - Key: Name
           Value: EKSHackingVpcPeering
@@ -26,13 +25,13 @@ Resources:
     Type: AWS::EC2::Route
     Properties:
       RouteTableId: !ImportValue EKSVpcPublicRouteTable
-      DestinationCidrBlock: !ImportValue EKSVpcCidrBlock
+      DestinationCidrBlock: !ImportValue BHVpcCidrBlock
       VpcPeeringConnectionId: !Ref EKSHackingVPCPeeringConnection
 
   RouteToBHVPC:
     Type: AWS::EC2::Route
     Properties:
       RouteTableId: !ImportValue BHVpcPublicRouteTable
-      DestinationCidrBlock: !ImportValue BHVpcCidrBlock
+      DestinationCidrBlock: !ImportValue EKSVpcCidrBlock
       VpcPeeringConnectionId: !Ref EKSHackingVPCPeeringConnection
 

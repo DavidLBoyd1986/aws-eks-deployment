@@ -158,7 +158,7 @@ Outputs:
   
   BHVpcBlock:
     Description: The CIDR Block for this VPC
-    Value: !Ref BHVpcBlock
+    Value: !GetAtt VPC.CidrBlock
     Export:
       Name: BHVpcCidrBlock
   
