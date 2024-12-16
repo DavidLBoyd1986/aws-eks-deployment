@@ -277,6 +277,18 @@ Resources:
           FromPort: 30000
           ToPort: 32767
           CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !ImportValue BHVpcCidrBlock
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: !ImportValue BHVpcCidrBlock
+        - IpProtocol: icmpv6
+          FromPort: -1
+          ToPort: -1
+          CidrIp: !ImportValue BHVpcCidrBlock
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
