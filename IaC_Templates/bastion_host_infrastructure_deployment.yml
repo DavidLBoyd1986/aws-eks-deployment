@@ -114,3 +114,7 @@ Outputs:
   windowsBastionHostPublicDNS:
     Value: !GetAtt windowsBastionHost.PublicDnsName
     Description: Public DNS name of the Windows Bastion Host
+
+   bastionHostKeyPair:
+    Value:  !Ref bastionHostKeyPair
+    Description: The keypair used to access the Bastion Host
