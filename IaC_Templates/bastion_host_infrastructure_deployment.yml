@@ -118,3 +118,5 @@ Outputs:
   bastionHostKeyPair:
     Value:  !Ref bastionHostKeyPair
     Description: The keypair used to access the Bastion Host
+    Export:
+      Name: bastionHostKeyPair

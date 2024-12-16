@@ -249,6 +249,8 @@ Resources:
           FromPort: 443
           ToPort: 443 
           CidrIp: 192.168.1.0/24
+        - IpProtocol: -1
+          CidrIp: !Ref WorkerNodeSecurityGroup 
 
   WorkerNodeSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -260,11 +262,11 @@ Resources:
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
-          CidrIp: 192.168.1.0/24
+          CidrIp: 192.168.1.0/24 
         - IpProtocol: tcp
           FromPort: 10250
           ToPort: 10250
-          CidrIp: 192.168.1.0/24
+          CidrIp: 192.168.1.0/24 
         - IpProtocol: udp
           FromPort: 53
           ToPort: 53

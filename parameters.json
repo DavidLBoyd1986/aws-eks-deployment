@@ -1,7 +1,7 @@
 [
     {
       "ParameterKey": "personalPublicIP",
-      "ParameterValue": "111.22.33.444"
+      "ParameterValue": "111.22.33.444/32"
     },
     {
       "ParameterKey": "userName",
