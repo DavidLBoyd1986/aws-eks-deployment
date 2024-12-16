@@ -24,7 +24,7 @@ Parameters:
 Resources:
 
   bastionHostKeyPair:
-    Type: AWS:EC2::KeyPair
+    Type: AWS::EC2::KeyPair
     Properties:
       KeyName: bastionHostKeyPair
       PublicKeyMaterial: !Ref bastionHostPublicKey
@@ -32,7 +32,7 @@ Resources:
   linuxBastionHost:
     Type: AWS::EC2::Instance
     Properties: 
-      ImageId: ami-0c80e2b6ccb9ad6d1 # This needs updated regularly
+      ImageId: ami-0453ec754f44f9a4a # This needs updated regularly - This AMI is in us-east-1
       InstanceType: t2.micro
       SubnetId: !ImportValue BHPublicSubnetOne
       SecurityGroupIds:
@@ -52,14 +52,14 @@ Resources:
           useradd -m ${userName}
           echo "${userName} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
           mkdir -p /home/${userName}/.ssh
-          echo "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQE..." >> /home/${userName}/.ssh/authorized_keys
+          echo "${bastionHostPublicKey}" >> /home/${userName}/.ssh/authorized_keys
           chmod 600 /home/${userName}/.ssh/authorized_keys
           chown -R ${userName}:${userName} /home/${userName}/.ssh
 
   windowsBastionHost:
     Type: AWS::EC2::Instance
     Properties: 
-      ImageId: ami-0e53ddf766d044cb0 # This needs updated regularly
+      ImageId: ami-05b1a50d6798f63cb # This needs updated regularly - This AMI is in us-east-1
       InstanceType: t3.medium
       SubnetId: !ImportValue BHPublicSubnetOne
       SecurityGroupIds:
@@ -115,6 +115,6 @@ Outputs:
     Value: !GetAtt windowsBastionHost.PublicDnsName
     Description: Public DNS name of the Windows Bastion Host
 
-   bastionHostKeyPair:
+  bastionHostKeyPair:
     Value:  !Ref bastionHostKeyPair
     Description: The keypair used to access the Bastion Host

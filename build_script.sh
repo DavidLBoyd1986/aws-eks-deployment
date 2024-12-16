@@ -13,8 +13,8 @@ aws cloudformation deploy --stack-name eks-hacking-bh-vpc-stack \
 echo "Deploy the BH Infrastructure stack - EC2 Instance with Security Groups"
 aws cloudformation create-stack --stack-name eks-hacking-bh-infrastructure-stack \
     --template-body file://$SCRIPT_DIR/IaC_Templates/bastion_host_infrastructure_deployment.yml \
-    --parameters fileb://$SCRIPT_DIR/parameters.json \
-    --capabilities CAPABILITY_IAM
+    --parameters file://$SCRIPT_DIR/parameters.json \
+    --capabilities CAPABILITY_NAMED_IAM
 
 # Deploys the EKS VPC and Infrastructure Stacks
 echo "Deploy the EKS Networking stack"
