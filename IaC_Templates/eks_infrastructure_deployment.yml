@@ -13,7 +13,7 @@ Parameters:
     Description: Name of the EKS NodeGroup
   AmiId:
     Type: String
-    Default: ami-06adb3f9f2d686cd3
+    Default: ami-053f582f07162d4c6
     Description: AMI ID used for Nodes
   DesiredCapacity:
     Type: Number
@@ -94,36 +94,16 @@ Resources:
         KeyName: !ImportValue EKSKeyPair 
         UserData:
           Fn::Base64: !Sub |
-            #!/bin/bash
+            #!/bin/bash -xe
+
+            # Bootstrap the Node - Register it to the EKS Cluster
             set -ex
+            B64_CLUSTER_CA=$(aws eks describe-cluster --name ${ClusterName} --region us-east-1 --query cluster.certificateAuthority.data)
+            B64_CLUSTER_CA=$(echo $B64_CLUSTER_CA | sed 's/"//g')
+            API_SERVER_URL=$(aws eks describe-cluster --name ${ClusterName} --region us-east-1 --query cluster.endpoint)
+            K8S_CLUSTER_DNS_IP=10.100.0.10
 
-            REGION="us-east-1"
-            CLUSTER_NAME="${ClusterName}"
-
-            # Retrieve cluster details
-            B64_CLUSTER_CA=$(aws eks describe-cluster --name $CLUSTER_NAME --region $REGION --query "cluster.certificateAuthority.data" --output text)
-            API_SERVER_URL=$(aws eks describe-cluster --name $CLUSTER_NAME --region $REGION --query "cluster.endpoint" --output text)
-            CIDR_BLOCK=$(aws eks describe-cluster --name $CLUSTER_NAME --region $REGION --query "KubernetesNetworkConfig.serviceIpv4Cidr" --output text)
-
-            # Set default CIDR if not available
-            if [[ -z "$CIDR_BLOCK" ]]; then
-              CIDR_BLOCK="10.100.0.0/16"
-            fi
-
-            # Configure node configuration in multipart MIME
-            cat <<EOF > /etc/node-config.yaml
-            apiVersion: node.eks.aws/v1alpha1
-            kind: NodeConfig
-            spec:
-              cluster:
-                name: $CLUSTER_NAME
-                apiServerEndpoint: $API_SERVER_URL
-                certificateAuthority: $B64_CLUSTER_CA
-                cidr: $CIDR_BLOCK
-            EOF
-
-             # Apply node configuration
-            nodeadm init -c /etc/node-config.yaml
+            /etc/eks/bootstrap.sh ${ClusterName} --kubelet-extra-args '--node-labels=eks.amazonaws.com/nodegroup-image=i${AmiId},eks.amazonaws.com/capacityType=ON_DEMAND,eks.amazonaws.com/nodegroup=${NodeGroupName} --max-pods=17' --b64-cluster-ca $B64_CLUSTER_CA --apiserver-endpoint $API_SERVER_URL --dns-cluster-ip $K8S_CLUSTER_DNS_IP --use-max-pods false
 
   # Application Load Balancer
   LoadBalancer:
