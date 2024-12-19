@@ -45,10 +45,34 @@ Troubleshooting:
     - Before I open up the SGs, I moved the VPC Peering connection before cluster deployment
     - This should allow me to troubleshoot, and get the peering connection working
 
+    SOLUTION:
+     - The AMI I was using didn't support the bootstrap.sh, which is dumb, as all the docs say to us it.
+     - Switched the AMI to one that supported the bootstrap script. Using the nodeadm did not work.
+
 - Cluster KeyPair:
     - I don't want to add the Bastion Host KeyPair to the Cluster.
     - So, I'm adding a EKSKeyPair manually to test with, and will remove it when done testing.
     - Long term, need to add a User to the EKS Nodes that I can ssh in as.
+
+    SOLUTION:
+    - Added the public key for an EKS Key pair. On user to manually copy the private key to the bastion host to connect
+
+- Configuring EKS Deployments and Services:
+    - The final, and most difficult, problem.
+    - My PC launching the script can't configure kubernetes as it can't connect to the cluster, only the bastion hosts can.
+    - Can I have this script run a script on the bastion host?
+
+    POSSIBLE SOLUTIONS:
+    - Install kubectl on the bastion host
+    - Install aws-cli on the bastion host
+    - Create configure IAM Role for bastion host to connect to EKS
+
+    - This must be manually done. Trying to automate it just isn't worth it.
+    - At the end, have script ssh into bastion host, and run the commands there.
+    - Or, could possibly configure bastion host infrastructure after cluster, and
+        include configuration in the USER DATA.
+    - Prefer having the script SSH directly to bastion host, as it is more explicit.
+
 
 TODO:
 - Windows Bastion Host - Fix logging in remotely as configured user

@@ -49,6 +49,7 @@ Resources:
       SubnetId: !ImportValue BHPublicSubnetOne
       SecurityGroupIds:
         - !Ref bastionHostSecurityGroup
+      IamInstanceProfile: !ImportValue BastionHostInstanceProfile
       KeyName: bastionHostKeyPair
       Tags: 
       - Key: Deployment
@@ -67,6 +68,25 @@ Resources:
           echo "${bastionHostPublicKey}" >> /home/${userName}/.ssh/authorized_keys
           chmod 600 /home/${userName}/.ssh/authorized_keys
           chown -R ${userName}:${userName} /home/${userName}/.ssh
+
+          # Configure kubernetes repo, then install kubectl
+          cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+          [kubernetes]
+          name=Kubernetes
+          baseurl=https://pkgs.k8s.io/core:/stable:/v1.32/rpm/
+          enabled=1
+          gpgcheck=1
+          gpgkey=https://pkgs.k8s.io/core:/stable:/v1.32/rpm/repodata/repomd.xml.key
+          EOF
+
+          yum install -y kubectl
+
+          # Install aws-cli
+          yum install -y unzip
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" --output awscliv2.zip
+          unzip awscliv2.zip
+          ./aws/install --update
+
 
   windowsBastionHost:
     Type: AWS::EC2::Instance

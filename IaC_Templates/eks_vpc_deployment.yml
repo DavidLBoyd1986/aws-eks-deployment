@@ -205,34 +205,6 @@ Resources:
       SubnetId: !Ref PrivateSubnet02
       RouteTableId: !Ref PrivateRouteTable02
 
-# Did not need to use - CAN DELETE!
-  FullAccessSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Full Access Security Group to just get the Nodes deployed and connected
-      VpcId: !Ref VPC
-      GroupName: FullAccessSecurityGroup 
-      SecurityGroupEgress:
-        - IpProtocol: -1 
-          CidrIp: 0.0.0.0/0   # Allow all outbound traffic
-      SecurityGroupIngress:
-        - IpProtocol: -1
-          CidrIp: 0.0.0.0/0 # Allow inbound traffic from personal IP
-
-# Did not need to use - CAN DELETE!
-  FakeDefaultVPCSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Fake Default Security Group that simulates the regular default SG
-      VpcId: !Ref VPC
-      GroupName: FakeDefaultVPCSecurityGroup 
-      SecurityGroupEgress:
-        - IpProtocol: -1 
-          CidrIp: 192.168.1.0/24
-      SecurityGroupIngress:
-        - IpProtocol: -1
-          CidrIp: 192.168.1.0/24
-
   ControlPlaneSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -278,6 +250,10 @@ Resources:
           ToPort: 32767
           CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
+          FromPort: 0 
+          ToPort: 65535 
+          CidrIp: !ImportValue BHVpcCidrBlock
+        - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
           CidrIp: !ImportValue BHVpcCidrBlock
@@ -289,25 +265,6 @@ Resources:
           FromPort: -1
           ToPort: -1
           CidrIp: !ImportValue BHVpcCidrBlock
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
-
-  LoadBalancerSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Load Balancer Security Group
-      VpcId: !Ref VPC
-      GroupName: LoadBalancerSecurityGroup
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
@@ -339,20 +296,6 @@ Outputs:
     Export:
       Name: EKSHackingPrivateSubnetTwo
 
-# CAN DELETE - Only used for testing
-  FullAccessSecurityGroup:
-    Description: Full Access Security Group to just get the Nodes deployed and connected
-    Value: !Ref FullAccessSecurityGroup
-    Export:
-      Name: EKSHackingFullAccessSecurityGroup
-
-# CAN DELETE - Only used for testing
-  FakeDefaultVPCSecurityGroup:
-    Description: Fake Default Security Group that simulates the regular default SG
-    Value: !Ref FakeDefaultVPCSecurityGroup
-    Export:
-      Name: EKSHackingFakeDefaultVPCSecurityGroup
-
   ControlPlaneSecurityGroup:
     Description: Security group for the cluster control plane communication with worker nodes
     Value: !Ref ControlPlaneSecurityGroup
@@ -364,12 +307,6 @@ Outputs:
     Value: !Ref WorkerNodeSecurityGroup
     Export:
       Name: EKSHackingWorkerNodeSecurityGroup
-
-  LoadBalancerSecurityGroup:
-    Description: Security group for the Load Balancer routing traffic to the Cluster
-    Value: !Ref LoadBalancerSecurityGroup
-    Export:
-      Name: EKSHackingLoadBalancerSecurityGroup
 
   EksVpcId:
     Description: The VPC Id

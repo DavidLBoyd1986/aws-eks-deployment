@@ -17,11 +17,11 @@ Parameters:
     Description: AMI ID used for Nodes
   DesiredCapacity:
     Type: Number
-    Default: 2
+    Default: 1
     Description: Desired number of worker nodes
   MaxSize:
     Type: Number
-    Default: 4
+    Default: 2
     Description: Max number of worker nodes
   MinSize:
     Type: Number
@@ -104,51 +104,3 @@ Resources:
             K8S_CLUSTER_DNS_IP=10.100.0.10
 
             /etc/eks/bootstrap.sh ${ClusterName} --kubelet-extra-args '--node-labels=eks.amazonaws.com/nodegroup-image=i${AmiId},eks.amazonaws.com/capacityType=ON_DEMAND,eks.amazonaws.com/nodegroup=${NodeGroupName} --max-pods=17' --b64-cluster-ca $B64_CLUSTER_CA --apiserver-endpoint $API_SERVER_URL --dns-cluster-ip $K8S_CLUSTER_DNS_IP --use-max-pods false
-
-  # Application Load Balancer
-  LoadBalancer:
-    DependsOn:
-      - EKSHackingCluster
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      Name: !Sub "${ClusterName}-ALB"
-      Scheme: internal
-      Subnets:
-        - !ImportValue EKSHackingPrivateSubnetOne
-        - !ImportValue EKSHackingPrivateSubnetTwo
-      SecurityGroups:
-        - !ImportValue EKSHackingLoadBalancerSecurityGroup
-      Type: application
-
-  # Target Group for EKS Services
-  TargetGroup:
-    DependsOn:
-      - EKSHackingCluster
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Name: !Sub "${ClusterName}-TG"
-      VpcId: !ImportValue EKSHackingVpcId
-      Port: 8080
-      Protocol: HTTP
-      TargetType: ip
-      HealthCheckProtocol: HTTP
-      HealthCheckPath: "/"
-      HealthCheckIntervalSeconds: 30
-
-  # Listener for Load Balancer
-  LoadBalancerListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      LoadBalancerArn: !Ref LoadBalancer
-      Port: 8080
-      Protocol: HTTP
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref TargetGroup
-
-Outputs:
-  TargetGroup:
-    Value: !Ref TargetGroup
-    Description: The ARN of the target group
-    Export:
-      Name: EKSHackingALBTargetGroupARN
