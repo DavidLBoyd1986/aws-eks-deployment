@@ -14,7 +14,7 @@ pipeline {
             }
         stage('test') {
             steps {
-                sh 'echo "Placeholder for test jobs'
+                sh 'echo "Placeholder for test jobs"'
                     }
                 }
         stage('deploy') {
