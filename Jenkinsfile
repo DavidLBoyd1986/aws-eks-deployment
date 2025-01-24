@@ -3,7 +3,8 @@ pipeline {
     agent any
 
     environment {
-        SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
+        TEST="TEST"
+        //SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
     }
 
     stages {
