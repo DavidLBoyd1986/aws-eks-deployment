@@ -57,7 +57,7 @@ aws cloudformation deploy --stack-name eks-hacking-eks-infrastructure-stack \
 
 # SCP the kubernetes files to the bastion host
 
-    # scp -i /path/to/bastionHostPrivateKey ssh -i $SCRIPT_DIR/kubernetes/* ec2-user@<bastion-host-ip>:/home/ec2-user/
+    # scp -i /path/to/bastionHostPrivateKey kubernetes/* ec2-user@<bastion-host-ip>:/home/ec2-user/
 
 # SSH into bastion host using private key of bastionHostKeyPair:
 
@@ -70,8 +70,8 @@ aws cloudformation deploy --stack-name eks-hacking-eks-infrastructure-stack \
         # TODO - Region here needs updated manually
 
 # Configure Kubernetes:
-    # kubectl create namespace my-namespace
-    # kubectl apply -f deployment.yml
+    # kubectl create namespace vulnerable-web-app
+    # kubectl apply -f vulnerable-web-app-deployment.yml
     # kubectl apply -f service.yml
 
 
