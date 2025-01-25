@@ -28,27 +28,27 @@ pipeline {
 
                         // Parameters require the public IP be listed as a subnet range
                         def PUBLIC_IP_RANGE = "${PUBLIC_IP}/32"
-                        sh 'echo ${PUBLIC_IP_RANGE}'
-                        sh 'echo $BASTION_PUBLIC_KEY'
-                        sh 'echo $EKS_PUBLIC_KEY'
-                        sh 'echo $BASTION_USERNAME'
-                        sh 'echo $BASTION_PASSWORD'
+                        echo "PUBLIC_IP_RANGE = ${PUBLIC_IP_RANGE}"
+                        echo "BASTION_PUBLIC_KEY = $BASTION_PUBLIC_KEY"
+                        echo "EKS_PUBLIC_KEY = $EKS_PUBLIC_KEY"
+                        echo "BASTION_USERNAME = $BASTION_USERNAME"
+                        echo "BASTION_PASSWORD = $BASTION_PASSWORD"
 
                         // Deploys the Bastion Host VPC and Infrastructure Stacks
-                        sh 'echo "Deploy the BH Networking stack"'
+                        echo "Deploy the BH Networking stack"
                         sh 'aws cloudformation deploy \
                             --stack-name eks-hacking-bh-vpc-stack \
                             --template-file ./IaC/bastion_host_vpc_deployment.yml \
                             --region $REGION'
 
-                        sh 'echo "Deploy the BH IAM stack"'
+                        echo "Deploy the BH IAM stack"
                         sh 'aws cloudformation deploy \
                             --stack-name eks-hacking-bh-iam-stack \
                             --template-file ./IaC/bastion_host_iam_deployment.yml \
                             --capabilities CAPABILITY_IAM \
                             --region $REGION'
 
-                        sh 'echo "Deploy the BH Infrastructure stack"'
+                        echo "Deploy the BH Infrastructure stack"
                         sh 'aws cloudformation create-stack \
                             --stack-name eks-hacking-bh-infrastructure-stack \
                             --template-body file://./IaC/bastion_host_infrastructure_deployment.yml \
@@ -57,13 +57,13 @@ pipeline {
                             --region $REGION'
 
                         // Deploys the EKS VPC and Infrastructure Stacks
-                        sh 'echo "Deploy the EKS Networking stack"'
+                        echo "Deploy the EKS Networking stack"
                         sh 'aws cloudformation deploy \
                             --stack-name eks-hacking-eks-vpc-stack \
                             --template-file ./IaC/eks_vpc_deployment.ym \
                             --region $REGION'
 
-                        sh 'echo "Deploy the EKS IAM stack"'
+                        echo "Deploy the EKS IAM stack"
                         sh 'aws cloudformation deploy \
                             --stack-name eks-hacking-eks-iam-stack \
                             --template-file ./IaC/eks_iam_deployment.yml \
@@ -71,13 +71,13 @@ pipeline {
                             --region $REGION'
 
                         // Deploys the VPC Peering Connection Stack
-                        sh 'echo "Deploy VPC Peering Connection so Bastion Hosts can connect to EKS Cluster"'
+                        echo "Deploy VPC Peering Connection so Bastion Hosts can connect to EKS Cluster"
                         sh 'aws cloudformation deploy \
                             --stack-name eks-hacking-eks-bh-vpc-peering-stack \
                             --template-file ./IaC/eks_bh_vpc_peering_deployment.yml \
                             --region $REGION'
 
-                        sh 'echo "Deploy the EKS Infrastructure Stack"'
+                        echo "Deploy the EKS Infrastructure Stack"
                         sh 'aws cloudformation deploy \
                             --stack-name eks-hacking-eks-infrastructure-stack \
                             --template-file ./IaC/eks_infrastructure_deployment.yml \
