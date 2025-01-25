@@ -22,10 +22,9 @@ pipeline {
 		        script {
                     withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'e3cfebfb-f2b8-4d9d-b9fc-2d1b594b264d', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'),
                                      usernamePassword(credentialsId: 'a797bda4-6f58-4006-8434-106015bbde1a', passwordVariable: 'BASTION_PASSWORD', usernameVariable: 'BASTION_USERNAME'),
-                                     string(credentialsId: 'fe4cd4f2-9718-4bef-924d-2270883629ed', variable: 'BASTION_PUBLIC_KEY'),
-                                     string(credentialsId: '78d30e31-e5a0-4b91-ae2a-50a1b0cee6b4', variable: 'EKS_PUBLIC_KEY'),
-                                     string(credentialsId: '2ef53f51-8a81-400a-be7f-538cdddad37b', variable: 'PUBLIC_IP')]) { 
-
+                                     file(credentialsId: '9f77c6ab-8888-4572-8a17-1e97d133e895', variable: 'BASTION_PUBLIC_KEY'),
+                                     file(credentialsId: 'd33c47b6-0cf5-4b7f-b9b0-94623cae6e90', variable: 'EKS_PUBLIC_KEY'),
+                                     string(credentialsId: '2ef53f51-8a81-400a-be7f-538cdddad37b', variable: 'PUBLIC_IP')]) {
                         // Parameters require the public IP be listed as a subnet range
                         def PUBLIC_IP_RANGE = "${PUBLIC_IP}/32"
                         echo "PUBLIC_IP_RANGE = ${PUBLIC_IP_RANGE}"
