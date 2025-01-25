@@ -1,23 +1,22 @@
 [
     {
       "ParameterKey": "personalPublicIP",
-      "ParameterValue": "111.22.33.444/32"
+      "ParameterValue": "$PUBLIC_IP_RANGE"
     },
     {
       "ParameterKey": "userName",
-      "ParameterValue": "BastionUser"
+      "ParameterValue": "$BASTION_USERNAME"
     },
     {
       "ParameterKey": "userPass",
-      "ParameterValue": "ChangeThisNow!!!!"
+      "ParameterValue": "$BASTION_PASSWORD"
     },
     {
       "ParameterKey": "bastionHostPublicKey",
-      "ParameterValue": "ssh-rsa blahblahblah BastionUser@yourcomputer"
+      "ParameterValue": "$BASTION_PUBLIC_KEY"
     },
     {
       "ParameterKey": "EKSPublicKey",
-      "ParameterValue": "ssh-rsa blahblahblah BastionUser@yourcomputer"
+      "ParameterValue": "$EKS_PUBLIC_KEY"
     }
   ]
-  
