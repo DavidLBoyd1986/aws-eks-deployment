@@ -28,6 +28,11 @@ pipeline {
 
                         // Parameters require the public IP be listed as a subnet range
                         def PUBLIC_IP_RANGE = "${PUBLIC_IP}/32"
+                        sh 'echo $PUBLIC_IP_RANGE'
+                        sh 'echo $BASTION_PUBLIC_KEY'
+                        sh 'echo $EKS_PUBLIC_KEY'
+                        sh 'echo $BASTION_USERNAME'
+                        sh 'echo $BASTION_PASSWORD'
 
                         // Deploys the Bastion Host VPC and Infrastructure Stacks
                         sh 'echo "Deploy the BH Networking stack"'
