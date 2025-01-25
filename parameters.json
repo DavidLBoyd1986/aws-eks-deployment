@@ -13,10 +13,10 @@
     },
     {
       "ParameterKey": "bastionHostPublicKey",
-      "ParameterValue": "$BASTION_PUBLIC_KEY"
+      "ParameterValue": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDigmABFIOslYXhz5UXSJOYiVUjGHz5BaYpmsy1qr9R0+w/zHxgWtIYWr5vCz53a/B66SpJi70263cW2Yp+RFCUHzBWulb/8rVF0D+Ccv9LhvSgHjkcJcL5MA5mXZLskWvfk7/RuiXZyBCL6ch8Hn+Dp2bxqFKL694AjZUP/mPTcXLbjquekrOTOdW7teV+jqp14R1P75rdjCdD/QCjV+NuM/n2227dF6TPBKZP9kHUyBjOhnaVS/FS/xpLyi8TZiavIy8JVJ9tUwdwyRqCrSOduD/QtwehLlMYqacP3DeFxo83/ddAhuMWEA0BeRWAtVh8RkH6fAkVAKQUvQYOAJuF dboyd@rhel-bastion"
     },
     {
       "ParameterKey": "EKSPublicKey",
-      "ParameterValue": "$EKS_PUBLIC_KEY"
+      "ParameterValue": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCuZ4AgV2uhvyIk3l+8bB6AqNpU8+coPdtvjT0P7G5hxkqrDtmc6v/fcV9i+sGlue4yJPzLRGets517b03dnlFnE3iPkfzNBkkcuCSJ7bM4VRECPny1/iSjZ6JxchmOeHT9iJVlthKSmt1ga/xQMpARAH5/KU3wD3Z0KEDnOXFYVTGNr/7CKcwMXIvseyA6suQpTfIwPWWSIUcl+p+8q6Zr9QuUdbxniN/rVAr13e5afr90meCx1EhjyVzHSa2zSAVhJP2SAwbU1Yo9OVImbCtihoZYkb364H9NQXx0SumBN5tzvAckkf5wyabR8Oj8NeNzoK78zvD2v/JwigG42Hwb dboyd@rhel-bastion"
     }
   ]
