@@ -23,6 +23,19 @@ pipeline {
                     withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'e3cfebfb-f2b8-4d9d-b9fc-2d1b594b264d', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'),
                                      usernamePassword(credentialsId: 'a797bda4-6f58-4006-8434-106015bbde1a', passwordVariable: 'BASTION_PASSWORD', usernameVariable: 'BASTION_USERNAME'),
                                      string(credentialsId: '2ef53f51-8a81-400a-be7f-538cdddad37b', variable: 'PUBLIC_IP')]) {
+
+                        def TEST_VAR = "${REGION}/32"
+                        echo "$TEST_VAR"
+
+                        def TEST_USER = "${BASTION_USERNAME}_TEST"
+                        echo "$TEST_USER"
+
+                        def TEST_NO_BRACKETS = "\$BASTION_USERNAME_TEST"
+                        echo "$TEST_NO_BRACKETS"
+
+                        def TEST_ADD = "$BASTION_USERNAME" + "_TEST"
+                        echo "$TEST_ADD"
+
                         // Parameters require the public IP be listed as a subnet range
                         def PUBLIC_IP_RANGE = "${PUBLIC_IP}/32"
 
