@@ -24,14 +24,12 @@ pipeline {
                                      usernamePassword(credentialsId: 'a797bda4-6f58-4006-8434-106015bbde1a', passwordVariable: 'BASTION_PASSWORD', usernameVariable: 'BASTION_USERNAME'),
                                      string(credentialsId: '2ef53f51-8a81-400a-be7f-538cdddad37b', variable: 'PUBLIC_IP')]) {
 
+                        // All These Worked. I'm not sure why the PUBLIC_IP one is not working
                         def TEST_VAR = "${REGION}/32"
                         echo "$TEST_VAR"
 
                         def TEST_USER = "${BASTION_USERNAME}_TEST"
                         echo "$TEST_USER"
-
-                        def TEST_NO_BRACKETS = "\$BASTION_USERNAME_TEST"
-                        echo "$TEST_NO_BRACKETS"
 
                         def TEST_ADD = "$BASTION_USERNAME" + "_TEST"
                         echo "$TEST_ADD"
@@ -65,7 +63,7 @@ pipeline {
                         echo "Deploy the EKS Networking stack"
                         sh 'aws cloudformation deploy \
                             --stack-name eks-hacking-eks-vpc-stack \
-                            --template-file ./IaC/eks_vpc_deployment.ym \
+                            --template-file ./IaC/eks_vpc_deployment.yml \
                             --region $REGION'
 
                         echo "Deploy the EKS IAM stack"
