@@ -4,6 +4,7 @@ pipeline {
 
     environment {
         REGION = "us-east-1"
+        PUBLIC_IP = credentials('2ef53f51-8a81-400a-be7f-538cdddad37b')
     }
 
     stages {
@@ -21,8 +22,7 @@ pipeline {
             steps {
 		        script {
                     withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'e3cfebfb-f2b8-4d9d-b9fc-2d1b594b264d', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'),
-                                     usernamePassword(credentialsId: 'a797bda4-6f58-4006-8434-106015bbde1a', passwordVariable: 'BASTION_PASSWORD', usernameVariable: 'BASTION_USERNAME'),
-                                     string(credentialsId: '2ef53f51-8a81-400a-be7f-538cdddad37b', variable: 'PUBLIC_IP')]) {
+                                     usernamePassword(credentialsId: 'a797bda4-6f58-4006-8434-106015bbde1a', passwordVariable: 'BASTION_PASSWORD', usernameVariable: 'BASTION_USERNAME') {
 
                         // All These Worked. I'm not sure why the PUBLIC_IP one is not working
                         def TEST_VAR = "${REGION}/32"
