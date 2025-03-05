@@ -35,11 +35,13 @@ pipeline {
                         echo "$TEST_ADD"
 
                         // Parameters require the public IP be listed as a subnet range
+                        sh """
                         echo "\nBrackets and env.\n"
                         echo "${env.PUBLIC_IP}"
                         echo "\nNO Brackets and env.\n"
                         echo "$PUBLIC_IP"
                         def PUBLIC_IP_RANGE = "${env.PUBLIC_IP}/32"
+                        """
 
                         // Deploys the Bastion Host VPC and Infrastructure Stacks
                         echo "Deploy the BH Networking stack"
