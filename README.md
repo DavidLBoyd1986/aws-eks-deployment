@@ -1,19 +1,19 @@
 <h1>Private EKS and Public Bastion Hosts</h1>
 <h2>CloudFormation Deployment</h2>
 
-Generates a VPC with Bastion Hosts (Linux and Windows), and a VPC running a Private EKS Cluster with the WebGoat Application to pentest against.
+Generates a VPC with Bastion Hosts (Linux and Windows), and a VPC running a Private EKS Cluster.
 
 The Bastion Host VPC will have a full VPC Peering connection with the EKS Cluster's VPC.
 
-IMPORTANT - I didn't add the Kali instance yet, and never will.
-            The end goal is to put a small ec2-instance instead of the bastion hosts.
-            This instance will route traffic from your on-prem kali to the private EKS Cluster
-            that is in a private subnet in it's own VPC.
-            That way you can hack away privately without exposing the vulnerable web application publicly.
+I'm working on deploying this using Jenkins, hence the Jenkinsfile. It can be deployed using the build_script.sh as well. I plan on adding a gitlab pipeline deployment as well.
+
+This guide will only explain the build_script.sh deployment, as the Jenkins and Gitlab deployments are too complicated to explain here.
+
+I attempted to keep this fully private at first, but have kinks to work out, so I'm changing it to a public cluster, and will change it to be private later. The problem with private deployment is I can't deploy kubernetes apps using the pipelines since the private Cluster can only be accessed using the bastion hosts. I will eventually make two eks deployments, one public and one private.
 
 <h3>Prerequisites</h3>
 
-1. The aws-cli is installed and configured 
+1. The aws-cli is installed and configured on the host running the build_script.sh
     a. Install aws-cli
     b. Configure aws-cli with access key or IAM Role
 
@@ -77,4 +77,5 @@ Troubleshooting:
 TODO:
 - Windows Bastion Host - Fix logging in remotely as configured user
 - EKS Working with full automated deployment
-- VPC peering between BH VPC and EKS VPC
+- Bastion Host can't connect to cluster using kubectl, even after configuring kubectl using aws cli.
+    - It's a networking issue I hope making the cluster public will fix.
