@@ -49,6 +49,7 @@ pipeline {
                             --capabilities CAPABILITY_IAM \
                             --region $REGION'
 
+                        // TODO - update parameters.json with your public IP. It is currently wide open!!
                         echo "Deploy the BH Infrastructure stack"
                         sh 'aws cloudformation create-stack \
                             --stack-name eks-hacking-bh-infrastructure-stack \

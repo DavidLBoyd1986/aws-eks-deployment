@@ -125,11 +125,11 @@ Resources:
         - IpProtocol: tcp
           FromPort: 3389
           ToPort: 3389
-          CidrIp: 0.0.0.0/0 # Allow inbound traffic from personal IP
+          CidrIP: !Ref personalPublicIP # Allow inbound traffic from personal IP
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 0.0.0.0/0 # Allow inbound traffic from personal IP
+          CidrIP: !Ref personalPublicIP # Allow inbound traffic from personal IP
       Tags: 
       - Key: Deployment
         Value: IaC

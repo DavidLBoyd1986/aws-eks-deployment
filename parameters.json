@@ -1,7 +1,7 @@
 [
     {
       "ParameterKey": "personalPublicIP",
-      "ParameterValue": "$PUBLIC_IP_RANGE"
+      "ParameterValue": "0.0.0.0/0"
     },
     {
       "ParameterKey": "userName",
