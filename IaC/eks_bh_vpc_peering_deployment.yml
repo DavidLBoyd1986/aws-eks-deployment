@@ -24,7 +24,7 @@ Resources:
   RouteToEKSVPC:
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !ImportValue EKSVpcPublicRouteTable
+      RouteTableId: !ImportValue EKSPublicCluster-VpcPublicRouteTable
       DestinationCidrBlock: !ImportValue BHVpcCidrBlock
       VpcPeeringConnectionId: !Ref EKSVPCPeeringConnection
 
