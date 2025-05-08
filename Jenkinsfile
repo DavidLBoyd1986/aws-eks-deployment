@@ -97,7 +97,7 @@ pipeline {
                         echo "Configure kubectl to connect to cluster."
                         sh 'kubectl version --client'
                         sh 'aws sts get-caller-identity'
-                        sh 'aws eks update-kubeconfig --region $REGION --name EKSHackingCluster'
+                        sh 'aws eks update-kubeconfig --region $REGION --name EKSPublicCluster'
                         // TODO - Make Cluster Name a parameter
 
                         // Configure Kubernetes:
