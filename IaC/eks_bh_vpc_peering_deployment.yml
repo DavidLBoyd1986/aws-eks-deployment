@@ -5,7 +5,7 @@ Description: CloudFormation template to create a VPC Peering connection between 
 Resources:
 
   # Who Requests/Accepts the VPC Peering Connection
-  EKSPublicCluster-VPCPeeringConnection:
+  EKSVPCPeeringConnection:
     Type: AWS::EC2::VPCPeeringConnection
     Properties:
       VpcId: !ImportValue BHVpcId
@@ -24,14 +24,14 @@ Resources:
   RouteToEKSVPC:
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !ImportValue EKSPublicCluster-VpcPublicRouteTable
+      RouteTableId: !ImportValue EKSVpcPublicRouteTable
       DestinationCidrBlock: !ImportValue BHVpcCidrBlock
-      VpcPeeringConnectionId: !Ref EKSPublicCluster-VPCPeeringConnection
+      VpcPeeringConnectionId: !Ref EKSVPCPeeringConnection
 
   RouteToBHVPC:
     Type: AWS::EC2::Route
     Properties:
       RouteTableId: !ImportValue BHVpcPublicRouteTable
       DestinationCidrBlock: !ImportValue EKSPublicCluster-VpcCidrBlock
-      VpcPeeringConnectionId: !Ref EKSPublicCluster-VPCPeeringConnection
+      VpcPeeringConnectionId: !Ref EKSVPCPeeringConnection
 
