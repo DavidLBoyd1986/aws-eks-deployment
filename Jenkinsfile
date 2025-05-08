@@ -116,7 +116,7 @@ pipeline {
 
                         // Run some test commands
                         sh 'kubectl get nodes'
-                        sh 'aws eks describe-nodegroup --cluster-name EKSHackingNodeCluster --nodegroup-name EKSHackingNodeGroup --region $REGION'
+                        sh 'aws eks describe-nodegroup --cluster-name EKSHackingCluster --nodegroup-name EKSHackingNodeGroup --region $REGION'
                         sh 'kubectl get all -n vulnerable-web-app'
                         sh 'kubectl get pods -n vulnerable-web-app'
                         // sh 'kubectl -n vulnerable-web-app describe service vulnerable-web-app-service'
