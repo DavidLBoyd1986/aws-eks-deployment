@@ -50,7 +50,6 @@ pipeline {
                             --region $REGION'
 
                         // TODO - update parameters.json with your public IP. It is currently wide open!!
-                        // TODO - Add logic so it won't try to re-create this if it already exists.
                         def stackExists = sh (
                             script: "aws cloudformation describe-stacks --region $REGION --stack-name bh-infrastructure-stack > /dev/null 2>&1",
                             returnStatus: true
