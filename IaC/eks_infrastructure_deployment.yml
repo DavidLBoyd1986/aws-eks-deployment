@@ -9,7 +9,7 @@ Parameters:
     Description: Name of the EKS Cluster
   NodeGroupName:
     Type: String
-    Default: EKSPublicCluster-NodeGroup
+    Default: EKSPublicClusterNodeGroup
     Description: Name of the EKS NodeGroup
   AmiId:
     Type: String
@@ -55,7 +55,7 @@ Resources:
       - Key: CanDelete
         Value: True
 
-  EKSPublicCluster-NodeGroup:
+  EKSPublicClusterNodeGroup:
     DependsOn:
       - EKSPublicCluster
     Type: AWS::EKS::Nodegroup
@@ -74,12 +74,12 @@ Resources:
           -  !ImportValue EKSPublicCluster-PrivateSubnetOne
           -  !ImportValue EKSPublicCluster-PrivateSubnetTwo
       LaunchTemplate:
-        Id: !Ref EKSPublicCluster-LaunchTemplate
+        Id: !Ref EKSPublicClusterLaunchTemplate
   
-  EKSPublicCluster-LaunchTemplate:
+  EKSPublicClusterLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
-      LaunchTemplateName: EKSPublicCluster-LaunchTemplate
+      LaunchTemplateName: EKSPublicClusterLaunchTemplate
       VersionDescription: "Bootstrap the Node, and Install the Cloud Agent."
       LaunchTemplateData:
         ImageId: !Ref AmiId
