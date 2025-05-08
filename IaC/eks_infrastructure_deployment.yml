@@ -62,7 +62,7 @@ Resources:
     Properties:
       ClusterName: !Ref ClusterName
       InstanceTypes: 
-        - t2.micro
+        - t3.large
       NodegroupName: !Ref NodeGroupName
       NodeRole: !ImportValue EKSHackingNodeRoleARN
       ScalingConfig:
