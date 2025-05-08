@@ -56,13 +56,13 @@ pipeline {
                             returnStatus: true
                         ) == 0
                         if (!stackExists) {
-                        echo "Deploy the BH Infrastructure Stack"
-                        sh 'aws cloudformation create-stack \
-                            --stack-name bh-infrastructure-stack \
-                            --template-body file://./IaC/bastion_host_infrastructure_deployment.yml \
-                            --parameters file://./parameters.json \
-                            --capabilities CAPABILITY_NAMED_IAM \
-                            --region $REGION'
+                            echo "Deploy the BH Infrastructure Stack"
+                            sh 'aws cloudformation create-stack \
+                                --stack-name bh-infrastructure-stack \
+                                --template-body file://./IaC/bastion_host_infrastructure_deployment.yml \
+                                --parameters file://./parameters.json \
+                                --capabilities CAPABILITY_NAMED_IAM \
+                                --region $REGION'
                         } else {
                             echo "BH Infrastructure Stack already exists, skipping deployment..."
                         }
@@ -101,7 +101,15 @@ pipeline {
                         // TODO - Make Cluster Name a parameter
 
                         // Configure Kubernetes:
-                        sh 'kubectl create namespace vulnerable-web-app'
+                        def namespaceExists = sh (
+                            script: "kubectl get namespace vulnerable-web-app > /dev/null 2>&1",
+                            returnStatus: true
+                        ) == 0
+                        if (!namespaceExists) {
+                            sh 'kubectl create namespace vulnerable-web-app'
+                        } else {
+                            echo "Kubernetes namespace already exists. Skipping this step...."
+                        }
                         sh 'kubectl apply -f ./kubernetes/vulnerable-web-app-deployment.yml'
                         // TODO - Create an actual service that isn't a nodeport
                         // sh 'kubectl apply -f ./kubernetes/vulnerable-web-app-service.yml'
