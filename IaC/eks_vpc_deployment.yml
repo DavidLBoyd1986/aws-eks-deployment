@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Amazon EKS VPC for Web App Testing - Only Private subnet'
+Description: 'Amazon EKS VPC for an EKS Cluster. This is for a Public facing Cluster.'
 
 Parameters:
 
@@ -280,48 +280,48 @@ Outputs:
     Value:
       Ref: PublicSubnet
     Export:
-      Name: EKSHackingPublicSubnet
+      Name: EKSPublicCluster-PublicSubnet
 
   PrivateSubnet01:
     Description: The subnet ID to use for private web servers
     Value:
       Ref: PrivateSubnet01
     Export:
-      Name: EKSHackingPrivateSubnetOne
+      Name: EKSPublicCluster-PrivateSubnetOne
 
   PrivateSubnet02:
     Description: The subnet ID to use for private web servers
     Value:
       Ref: PrivateSubnet02
     Export:
-      Name: EKSHackingPrivateSubnetTwo
+      Name: EKSPublicCluster-PrivateSubnetTwo
 
   ControlPlaneSecurityGroup:
     Description: Security group for the cluster control plane communication with worker nodes
     Value: !Ref ControlPlaneSecurityGroup
     Export:
-      Name: EKSHackingControlPlaneSecurityGroup
+      Name: EKSPublicCluster-ControlPlaneSecurityGroup
 
   WorkerNodeSecurityGroup:
     Description: Security group for the cluster worker nodes
     Value: !Ref WorkerNodeSecurityGroup
     Export:
-      Name: EKSHackingWorkerNodeSecurityGroup
+      Name: EKSPublicCluster-WorkerNodeSecurityGroup
 
   EksVpcId:
     Description: The VPC Id
     Value: !Ref VPC
     Export:
-      Name: EKSHackingVpcId
+      Name: EKSPublicCluster-VpcId
  
   VpcBlock:
     Description: CIDR for VPC Block
     Value: !GetAtt VPC.CidrBlock
     Export:
-      Name: EKSVpcCidrBlock
+      Name: EKSPublicCluster-VpcCidrBlock
 
   PublicRouteTable:
     Description: The Public Route Table for this VPC
     Value: !Ref PublicRouteTable
     Export:
-      Name: EKSVpcPublicRouteTable
+      Name: EKSPublicCluster-VpcPublicRouteTable

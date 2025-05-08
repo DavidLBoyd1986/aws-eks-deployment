@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: vulnerable-web-app-deployment
-  namespace: vulnerable-web-app
+  name: web-app-deployment
+  namespace: web-app
   labels:
-    app: vulnerable-web-app-webgoat
+    app: web-app-webgoat
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: vulnerable-web-app-webgoat
+      app: web-app-webgoat
   template:
     metadata:
       labels:
-        app: vulnerable-web-app-webgoat
+        app: web-app-webgoat
     spec:
       containers:
-      - name: vulnerable-web-app
+      - name: web-app
         image: webgoat/webgoat
         ports:
         - name: http

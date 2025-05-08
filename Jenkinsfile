@@ -42,34 +42,18 @@ pipeline {
                             --template-file ./IaC/bastion_host_vpc_deployment.yml \
                             --region $REGION'
 
-                        echo "Deploy the BH IAM stack"
-                        sh 'aws cloudformation deploy \
-                            --stack-name bh-iam-stack \
-                            --template-file ./IaC/bastion_host_iam_deployment.yml \
-                            --capabilities CAPABILITY_IAM \
-                            --region $REGION'
-
-                        // TODO - update parameters.json with your public IP. It is currently wide open!!
-                        def stackExists = sh (
-                            script: "aws cloudformation describe-stacks --region $REGION --stack-name bh-infrastructure-stack > /dev/null 2>&1",
-                            returnStatus: true
-                        ) == 0
-                        if (!stackExists) {
-                            echo "Deploy the BH Infrastructure Stack"
-                            sh 'aws cloudformation create-stack \
-                                --stack-name bh-infrastructure-stack \
-                                --template-body file://./IaC/bastion_host_infrastructure_deployment.yml \
-                                --parameters file://./parameters.json \
-                                --capabilities CAPABILITY_NAMED_IAM \
-                                --region $REGION'
-                        } else {
-                            echo "BH Infrastructure Stack already exists, skipping deployment..."
-                        }
                         // Deploys the EKS VPC and Infrastructure Stacks
                         echo "Deploy the EKS Networking stack"
                         sh 'aws cloudformation deploy \
                             --stack-name eks-vpc-stack \
                             --template-file ./IaC/eks_vpc_deployment.yml \
+                            --region $REGION'
+
+                        echo "Deploy the BH IAM stack"
+                        sh 'aws cloudformation deploy \
+                            --stack-name bh-iam-stack \
+                            --template-file ./IaC/bastion_host_iam_deployment.yml \
+                            --capabilities CAPABILITY_IAM \
                             --region $REGION'
 
                         echo "Deploy the EKS IAM stack"
@@ -91,7 +75,24 @@ pipeline {
                             --stack-name eks-infrastructure-stack \
                             --template-file ./IaC/eks_infrastructure_deployment.yml \
                             --region $REGION'
-                        
+
+                        // TODO - update parameters.json with your public IP. It is currently wide open!!
+                        def stackExists = sh (
+                            script: "aws cloudformation describe-stacks --region $REGION --stack-name bh-infrastructure-stack > /dev/null 2>&1",
+                            returnStatus: true
+                        ) == 0
+                        if (!stackExists) {
+                            echo "Deploy the BH Infrastructure Stack"
+                            sh 'aws cloudformation create-stack \
+                                --stack-name bh-infrastructure-stack \
+                                --template-body file://./IaC/bastion_host_infrastructure_deployment.yml \
+                                --parameters file://./parameters.json \
+                                --capabilities CAPABILITY_NAMED_IAM \
+                                --region $REGION'
+                        } else {
+                            echo "BH Infrastructure Stack already exists, skipping deployment..."
+                        }
+
                         // Configure kubectl to connect to eks cluster.
                         echo "Configure kubectl to connect to cluster."
                         sh 'kubectl version --client'
@@ -101,24 +102,24 @@ pipeline {
 
                         // Configure Kubernetes:
                         def namespaceExists = sh (
-                            script: "kubectl get namespace vulnerable-web-app > /dev/null 2>&1",
+                            script: "kubectl get namespace web-app > /dev/null 2>&1",
                             returnStatus: true
                         ) == 0
                         if (!namespaceExists) {
-                            sh 'kubectl create namespace vulnerable-web-app'
+                            sh 'kubectl create namespace web-app'
                         } else {
                             echo "Kubernetes namespace already exists. Skipping this step...."
                         }
-                        sh 'kubectl apply -f ./kubernetes/vulnerable-web-app-deployment.yml'
+                        sh 'kubectl apply -f ./kubernetes/web-app-deployment.yml'
                         // TODO - Create an actual service that isn't a nodeport
-                        // sh 'kubectl apply -f ./kubernetes/vulnerable-web-app-service.yml'
+                        // sh 'kubectl apply -f ./kubernetes/web-app-service.yml'
 
                         // Run some test commands
                         sh 'kubectl get nodes'
-                        sh 'aws eks describe-nodegroup --cluster-name EKSHackingCluster --nodegroup-name EKSHackingNodeGroup --region $REGION'
-                        sh 'kubectl get all -n vulnerable-web-app'
-                        sh 'kubectl get pods -n vulnerable-web-app'
-                        // sh 'kubectl -n vulnerable-web-app describe service vulnerable-web-app-service'
+                        sh 'aws eks describe-nodegroup --cluster-name EKSPublicCluster --nodegroup-name EKSPublicCluster-NodeGroup --region $REGION'
+                        sh 'kubectl get all -n web-app'
+                        sh 'kubectl get pods -n web-app'
+                        // sh 'kubectl -n web-app describe service web-app-service'
                         }
                     }
                 }

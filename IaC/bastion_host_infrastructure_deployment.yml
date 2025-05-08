@@ -87,6 +87,11 @@ Resources:
           unzip awscliv2.zip
           ./aws/install --update
 
+          # Configure kubectl to connect to eks cluster.
+          kubectl version --client
+          aws sts get-caller-identity
+          aws eks update-kubeconfig --region ${AWS::Region} --name $(ClusterName)
+
 
   windowsBastionHost:
     Type: AWS::EC2::Instance
