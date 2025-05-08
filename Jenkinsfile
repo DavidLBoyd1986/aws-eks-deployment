@@ -116,7 +116,7 @@ pipeline {
 
                         // Run some test commands
                         sh 'kubectl get nodes'
-                        sh 'aws eks describe-nodegroup --cluster-name EKSPublicCluster --nodegroup-name EKSPublicCluster-NodeGroup --region $REGION'
+                        sh 'aws eks describe-nodegroup --cluster-name EKSPublicCluster --nodegroup-name EKSPublicClusterNodeGroup --region $REGION'
                         sh 'kubectl get all -n web-app'
                         sh 'kubectl get pods -n web-app'
                         // sh 'kubectl -n web-app describe service web-app-service'
