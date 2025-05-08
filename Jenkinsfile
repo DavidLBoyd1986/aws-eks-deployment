@@ -50,14 +50,22 @@ pipeline {
                             --region $REGION'
 
                         // TODO - update parameters.json with your public IP. It is currently wide open!!
-                        echo "Deploy the BH Infrastructure stack"
+                        // TODO - Add logic so it won't try to re-create this if it already exists.
+                        def stackExists = sh (
+                            script: "aws cloudformation describe-stacks --region $REGION --stack-name bh-infrastructure-stack > /dev/null 2>&1",
+                            returnStatus: true
+                        ) == 0
+                        if (!stackExists) {
+                        echo "Deploy the BH Infrastructure Stack"
                         sh 'aws cloudformation create-stack \
                             --stack-name bh-infrastructure-stack \
                             --template-body file://./IaC/bastion_host_infrastructure_deployment.yml \
                             --parameters file://./parameters.json \
                             --capabilities CAPABILITY_NAMED_IAM \
                             --region $REGION'
-
+                        } else {
+                            echo "BH Infrastructure Stack already exists, skipping deployment..."
+                        }
                         // Deploys the EKS VPC and Infrastructure Stacks
                         echo "Deploy the EKS Networking stack"
                         sh 'aws cloudformation deploy \
@@ -84,6 +92,26 @@ pipeline {
                             --stack-name eks-infrastructure-stack \
                             --template-file ./IaC/eks_infrastructure_deployment.yml \
                             --region $REGION'
+                        
+                        // Configure kubectl to connect to eks cluster.
+                        echo "Configure kubectl to connect to cluster."
+                        sh 'kubectl version --client'
+                        sh 'aws sts get-caller-identity'
+                        sh 'aws eks update-kubeconfig --region $REGION --name EKSHackingCluster'
+                        // TODO - Make Cluster Name a parameter
+
+                        // Configure Kubernetes:
+                        sh 'kubectl create namespace vulnerable-web-app'
+                        sh 'kubectl apply -f vulnerable-web-app-deployment.yml'
+                        // TODO - Create an actual service that isn't a nodeport
+                        // sh 'kubectl apply -f service.yml'
+
+                        // Run some test commands
+                        sh 'kubectl get nodes'
+                        sh 'aws eks describe-nodegroup --cluster-name EKSHackingNodeCluster --nodegroup-name EKSHackingNodeGroup'
+                        sh 'kubectl get all -n vulnerable-web-app'
+                        sh 'kubectl get pods -n vulnerable-web-app'
+                        // sh 'kubectl -n vulnerable-web-app describe service vulnerable-web-app-service'
                         }
                     }
                 }

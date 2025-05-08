@@ -62,7 +62,7 @@ Resources:
     Properties:
       ClusterName: !Ref ClusterName
       InstanceTypes: 
-        - t3.large
+        - t3.large # This can't be a t2.micro. If you see a can't assign IP Error for pods, the instance is too small
       NodegroupName: !Ref NodeGroupName
       NodeRole: !ImportValue EKSHackingNodeRoleARN
       ScalingConfig:
