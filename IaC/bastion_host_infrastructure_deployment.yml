@@ -91,7 +91,7 @@ Resources:
   windowsBastionHost:
     Type: AWS::EC2::Instance
     Properties: 
-      ImageId: ami-05b1a50d6798f63cb # This needs updated regularly - This AMI is in us-east-1
+      ImageId: ami-09cb80360d5069de4 # This needs updated regularly - This AMI is in us-east-1
       InstanceType: t3.medium
       SubnetId: !ImportValue BHPublicSubnetOne
       SecurityGroupIds:
@@ -125,11 +125,11 @@ Resources:
         - IpProtocol: tcp
           FromPort: 3389
           ToPort: 3389
-          CidrIp: 0.0.0.0/0 # Allow inbound traffic from personal IP
+          CidrIP: !Ref personalPublicIP # Allow inbound traffic from personal IP
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 0.0.0.0/0 # Allow inbound traffic from personal IP
+          CidrIP: !Ref personalPublicIP # Allow inbound traffic from personal IP
       Tags: 
       - Key: Deployment
         Value: IaC

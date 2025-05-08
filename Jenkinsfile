@@ -38,35 +38,43 @@ pipeline {
                         // Deploys the Bastion Host VPC and Infrastructure Stacks
                         echo "Deploy the BH Networking stack"
                         sh 'aws cloudformation deploy \
-                            --stack-name eks-hacking-bh-vpc-stack \
+                            --stack-name bh-vpc-stack \
                             --template-file ./IaC/bastion_host_vpc_deployment.yml \
                             --region $REGION'
 
                         echo "Deploy the BH IAM stack"
                         sh 'aws cloudformation deploy \
-                            --stack-name eks-hacking-bh-iam-stack \
+                            --stack-name bh-iam-stack \
                             --template-file ./IaC/bastion_host_iam_deployment.yml \
                             --capabilities CAPABILITY_IAM \
                             --region $REGION'
 
-                        echo "Deploy the BH Infrastructure stack"
-                        sh 'aws cloudformation create-stack \
-                            --stack-name eks-hacking-bh-infrastructure-stack \
-                            --template-body file://./IaC/bastion_host_infrastructure_deployment.yml \
-                            --parameters file://./parameters.json \
-                            --capabilities CAPABILITY_NAMED_IAM \
-                            --region $REGION'
-
+                        // TODO - update parameters.json with your public IP. It is currently wide open!!
+                        def stackExists = sh (
+                            script: "aws cloudformation describe-stacks --region $REGION --stack-name bh-infrastructure-stack > /dev/null 2>&1",
+                            returnStatus: true
+                        ) == 0
+                        if (!stackExists) {
+                            echo "Deploy the BH Infrastructure Stack"
+                            sh 'aws cloudformation create-stack \
+                                --stack-name bh-infrastructure-stack \
+                                --template-body file://./IaC/bastion_host_infrastructure_deployment.yml \
+                                --parameters file://./parameters.json \
+                                --capabilities CAPABILITY_NAMED_IAM \
+                                --region $REGION'
+                        } else {
+                            echo "BH Infrastructure Stack already exists, skipping deployment..."
+                        }
                         // Deploys the EKS VPC and Infrastructure Stacks
                         echo "Deploy the EKS Networking stack"
                         sh 'aws cloudformation deploy \
-                            --stack-name eks-hacking-eks-vpc-stack \
+                            --stack-name eks-vpc-stack \
                             --template-file ./IaC/eks_vpc_deployment.yml \
                             --region $REGION'
 
                         echo "Deploy the EKS IAM stack"
                         sh 'aws cloudformation deploy \
-                            --stack-name eks-hacking-eks-iam-stack \
+                            --stack-name eks-iam-stack \
                             --template-file ./IaC/eks_iam_deployment.yml \
                             --capabilities CAPABILITY_NAMED_IAM \
                             --region $REGION'
@@ -74,15 +82,43 @@ pipeline {
                         // Deploys the VPC Peering Connection Stack
                         echo "Deploy VPC Peering Connection so Bastion Hosts can connect to EKS Cluster"
                         sh 'aws cloudformation deploy \
-                            --stack-name eks-hacking-eks-bh-vpc-peering-stack \
+                            --stack-name eks-bh-vpc-peering-stack \
                             --template-file ./IaC/eks_bh_vpc_peering_deployment.yml \
                             --region $REGION'
 
                         echo "Deploy the EKS Infrastructure Stack"
                         sh 'aws cloudformation deploy \
-                            --stack-name eks-hacking-eks-infrastructure-stack \
+                            --stack-name eks-infrastructure-stack \
                             --template-file ./IaC/eks_infrastructure_deployment.yml \
                             --region $REGION'
+                        
+                        // Configure kubectl to connect to eks cluster.
+                        echo "Configure kubectl to connect to cluster."
+                        sh 'kubectl version --client'
+                        sh 'aws sts get-caller-identity'
+                        sh 'aws eks update-kubeconfig --region $REGION --name EKSHackingCluster'
+                        // TODO - Make Cluster Name a parameter
+
+                        // Configure Kubernetes:
+                        def namespaceExists = sh (
+                            script: "kubectl get namespace vulnerable-web-app > /dev/null 2>&1",
+                            returnStatus: true
+                        ) == 0
+                        if (!namespaceExists) {
+                            sh 'kubectl create namespace vulnerable-web-app'
+                        } else {
+                            echo "Kubernetes namespace already exists. Skipping this step...."
+                        }
+                        sh 'kubectl apply -f ./kubernetes/vulnerable-web-app-deployment.yml'
+                        // TODO - Create an actual service that isn't a nodeport
+                        // sh 'kubectl apply -f ./kubernetes/vulnerable-web-app-service.yml'
+
+                        // Run some test commands
+                        sh 'kubectl get nodes'
+                        sh 'aws eks describe-nodegroup --cluster-name EKSHackingCluster --nodegroup-name EKSHackingNodeGroup --region $REGION'
+                        sh 'kubectl get all -n vulnerable-web-app'
+                        sh 'kubectl get pods -n vulnerable-web-app'
+                        // sh 'kubectl -n vulnerable-web-app describe service vulnerable-web-app-service'
                         }
                     }
                 }
