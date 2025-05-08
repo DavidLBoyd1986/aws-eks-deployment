@@ -91,7 +91,7 @@ Resources:
   windowsBastionHost:
     Type: AWS::EC2::Instance
     Properties: 
-      ImageId: ami-05b1a50d6798f63cb # This needs updated regularly - This AMI is in us-east-1
+      ImageId: ami-09cb80360d5069de4 # This needs updated regularly - This AMI is in us-east-1
       InstanceType: t3.medium
       SubnetId: !ImportValue BHPublicSubnetOne
       SecurityGroupIds:
