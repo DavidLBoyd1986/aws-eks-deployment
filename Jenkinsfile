@@ -102,9 +102,9 @@ pipeline {
 
                         // Configure Kubernetes:
                         sh 'kubectl create namespace vulnerable-web-app'
-                        sh 'kubectl apply -f vulnerable-web-app-deployment.yml'
+                        sh 'kubectl apply -f ./kubernetes/vulnerable-web-app-deployment.yml'
                         // TODO - Create an actual service that isn't a nodeport
-                        // sh 'kubectl apply -f service.yml'
+                        // sh 'kubectl apply -f ./kubernetes/vulnerable-web-app-service.yml'
 
                         // Run some test commands
                         sh 'kubectl get nodes'
