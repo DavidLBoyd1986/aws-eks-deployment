@@ -139,7 +139,7 @@ pipeline {
                         // Get AWSAccountId
                         def AWSAccountId = sh (
                             script: "aws sts get-caller-identity --query Account --output text",
-                            returnStdOut: true
+                            returnStdout: true
                         ).trim()
                         echo ${AWS_ACCOUNT_ID}
 
