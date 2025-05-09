@@ -148,6 +148,14 @@ pipeline {
                             script: "kubectl get serviceaccount aws-load-balancer-controller -n kube-system | grep 'aws-load-balancer-controller' > /dev/null 2>&1",
                             returnStatus: true
                         ) == 0
+
+                        // Must associate an OIDC (OpenID Connect) provider with the cluster
+                        if (!awsLoadBalancerControllerExists) {
+                            sh 'eksctl utils associate-iam-oidc-provider \
+                                --region us-east-1 \
+                                --cluster EKSPublicCluster \
+                                --approve'
+                        }
                         if (!awsLoadBalancerControllerExists) {
                             sh 'eksctl create iamserviceaccount \
                                 --cluster=EKSPublicCluster \
