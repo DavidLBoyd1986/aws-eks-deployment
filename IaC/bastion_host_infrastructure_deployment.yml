@@ -92,6 +92,12 @@ Resources:
           aws sts get-caller-identity
           aws eks update-kubeconfig --region ${AWS::Region} --name $(ClusterName)
 
+          # Download helm
+          curl -o helm.tar.gz https://get.helm.sh/helm-v3.18.0-rc.1-linux-amd64.tar.gz
+          tar xvf helm.tar.gz
+          cp -p linux-amd64/helm /usr/local/bin/
+
+
 
   windowsBastionHost:
     Type: AWS::EC2::Instance

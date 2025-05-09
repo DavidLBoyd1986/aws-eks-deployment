@@ -81,6 +81,9 @@ pipeline {
                             script: "aws cloudformation describe-stacks --region $REGION --stack-name bh-infrastructure-stack > /dev/null 2>&1",
                             returnStatus: true
                         ) == 0
+                        // above defines a variable, script runs the command and hides the output
+                        // returnStatus: true - indicates that script should return the status of the command.
+                        // '== 0' returns true if the command returned '0' (succeeded) or false if it's anything else (failed)
                         if (!stackExists) {
                             echo "Deploy the BH Infrastructure Stack"
                             sh 'aws cloudformation create-stack \
@@ -100,7 +103,7 @@ pipeline {
                         sh 'aws eks update-kubeconfig --region $REGION --name EKSPublicCluster'
                         // TODO - Make Cluster Name a parameter
 
-                        // Configure Kubernetes:
+                        // Configure Kubernetes with namespace and deploy the app:
                         def namespaceExists = sh (
                             script: "kubectl get namespace web-app > /dev/null 2>&1",
                             returnStatus: true
@@ -111,15 +114,73 @@ pipeline {
                             echo "Kubernetes namespace already exists. Skipping this step...."
                         }
                         sh 'kubectl apply -f ./kubernetes/web-app-deployment.yml'
-                        // TODO - Create an actual service that isn't a nodeport
-                        // sh 'kubectl apply -f ./kubernetes/web-app-service.yml'
 
                         // Run some test commands
                         sh 'kubectl get nodes'
                         sh 'aws eks describe-nodegroup --cluster-name EKSPublicCluster --nodegroup-name EKSPublicClusterNodeGroup --region $REGION'
                         sh 'kubectl get all -n web-app'
                         sh 'kubectl get pods -n web-app'
-                        // sh 'kubectl -n web-app describe service web-app-service'
+
+                        // Configure a Service/Ingress to allow connections to the application
+
+                        // Detect if the AWSLoadBalancerControllerIAMPolicy exists
+                        def awsLoadBalancerControllerPolicyExists = (
+                            script: "aws iam list-policies --scope Local --query 'Policies[].PolicyName' --output text |
+                                     grep 'AWSLoadBalancerControllerIAMPolicy' > /dev/null 2>&1",
+                            returnStatus: true
+                        ) == 0
+
+                        if (!awsLoadBalancerControllerPolicyExists) {
+                            sh 'curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.12.0/docs/install/iam_policy.json'
+                            sh 'aws iam create-policy --policy-name AWSLoadBalancerControllerIAMPolicy --policy-document file://iam_policy.json'
+                        } else {
+                            echo "The AWSLoadBalancerControllerIAMPolicy already exists. Skipping this step....."
+                        }
+
+                        // Get AWSAccountId
+                        def AWSAccountId = (
+                            script: "aws sts get-caller-identity --query Account --output text",
+                            returnStdOut: true
+                        ).trim()
+                        echo ${AWS_ACCOUNT_ID}
+
+                        // Detect if the "aws-load-balancer-controller" (Kubernetes Service Account) exists
+                        def awsLoadBalancerControllerExists = (
+                            script: "kubectl get serviceaccount aws-load-balancer-controller -n kube-system | grep 'aws-load-balancer-controller' > /dev/null 2>&1",
+                            returnStatus: true
+                        ) == 0
+                        if (!awsLoadBalancerControllerExists) {
+                            sh 'eksctl create iamserviceaccount \
+                                --cluster=EKSPublicCluster \
+                                --namespace=kube-system \
+                                --name=aws-load-balancer-controller \
+                                --attach-policy-arn=arn:aws:iam::${AWSACCOUNTID}:policy/AWSLoadBalancerControllerIAMPolicy \
+                                --override-existing-serviceaccounts \
+                                --region $REGION \
+                                --approve'
+                        }
+
+                        // Install the AWS Load Balancer Controller using Helm
+                        sh 'helm repo add eks https://aws.github.io/eks-charts'
+                        sh 'helm repo update eks'
+                        sh 'helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+                            -n kube-system \
+                            --set clusterName=EKSPublicCluster \
+                            --set serviceAccount.create=false \
+                            --set serviceAccount.name=aws-load-balancer-controller'
+
+                        // Test if the AWS Load Balancer Controller is (finally) installed
+                        sh 'kubectl get deployment -n kube-system aws-load-balancer-controller'
+
+                        // Create the Kubernetes Service for the web-app
+                        sh 'kubectl apply -f ./kubernetes/web-app-service.yml'
+                        sh 'kubectl -n web-app describe service web-app-service'
+
+                        // Create the Kubernetes Ingress for the web-app
+                        sh 'kubectl apply -f ./kubernetes/web-app-ingress.yml'
+                        sh 'kubectl -n web-app describe ingress web-app-ingress'
+
+                        // TODO - Add some tests to verify the external connections are working.
                         }
                     }
                 }

@@ -1,16 +1,15 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: vulnerable-web-app-service
-  namespace: vulnerable-web-app
+  name: web-app-service
+  namespace: web-app
   labels:
-    app: vulnerable-web-app-webgoat
+    app: web-app-webgoat
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
-    app: vulnerable-web-app-webgoat
+    app: web-app-webgoat
   ports:
     - protocol: TCP
       port: 8080
       targetPort: 8080
-      nodePort: 30080
