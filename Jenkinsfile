@@ -124,7 +124,7 @@ pipeline {
                         // Configure a Service/Ingress to allow connections to the application
 
                         // Detect if the AWSLoadBalancerControllerIAMPolicy exists
-                        def awsLoadBalancerControllerPolicyExists = (
+                        def awsLoadBalancerControllerPolicyExists = sh (
                             script: "aws iam list-policies --scope Local --query 'Policies[].PolicyName' --output text | grep 'AWSLoadBalancerControllerIAMPolicy' > /dev/null 2>&1",
                             returnStatus: true
                         ) == 0
@@ -144,7 +144,7 @@ pipeline {
                         echo ${AWS_ACCOUNT_ID}
 
                         // Detect if the "aws-load-balancer-controller" (Kubernetes Service Account) exists
-                        def awsLoadBalancerControllerExists = (
+                        def awsLoadBalancerControllerExists = sh (
                             script: "kubectl get serviceaccount aws-load-balancer-controller -n kube-system | grep 'aws-load-balancer-controller' > /dev/null 2>&1",
                             returnStatus: true
                         ) == 0
