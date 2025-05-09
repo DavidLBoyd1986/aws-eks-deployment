@@ -125,8 +125,7 @@ pipeline {
 
                         // Detect if the AWSLoadBalancerControllerIAMPolicy exists
                         def awsLoadBalancerControllerPolicyExists = (
-                            script: "aws iam list-policies --scope Local --query 'Policies[].PolicyName' --output text | \
-                                     grep 'AWSLoadBalancerControllerIAMPolicy' > /dev/null 2>&1",
+                            script: "aws iam list-policies --scope Local --query 'Policies[].PolicyName' --output text | grep 'AWSLoadBalancerControllerIAMPolicy' > /dev/null 2>&1",
                             returnStatus: true
                         ) == 0
 
