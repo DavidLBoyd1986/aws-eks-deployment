@@ -141,7 +141,7 @@ pipeline {
                             script: "aws sts get-caller-identity --query Account --output text",
                             returnStdout: true
                         ).trim()
-                        echo ${AWS_ACCOUNT_ID}
+                        echo "AWS Account ID is ${AWSAccountId}"
 
                         // Detect if the "aws-load-balancer-controller" (Kubernetes Service Account) exists
                         def awsLoadBalancerControllerExists = sh (
