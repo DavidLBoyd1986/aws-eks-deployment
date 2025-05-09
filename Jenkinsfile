@@ -137,7 +137,7 @@ pipeline {
                         }
 
                         // Get AWSAccountId
-                        def AWSAccountId = (
+                        def AWSAccountId = sh (
                             script: "aws sts get-caller-identity --query Account --output text",
                             returnStdOut: true
                         ).trim()
