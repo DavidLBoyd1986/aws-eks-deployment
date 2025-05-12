@@ -155,7 +155,7 @@ pipeline {
                                 eksctl utils associate-iam-oidc-provider \
                                     --region $REGION \
                                     --cluster EKSPublicCluster \
-                                    --approve'
+                                    --approve
                             """
                         }
                         if (!awsLoadBalancerControllerExists) {
@@ -167,7 +167,7 @@ pipeline {
                                     --attach-policy-arn=arn:aws:iam::${AWSAccountId}:policy/AWSLoadBalancerControllerIAMPolicy \
                                     --override-existing-serviceaccounts \
                                     --region $REGION \
-                                    --approve'
+                                    --approve
                             """
                         }
 
