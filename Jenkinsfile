@@ -209,11 +209,21 @@ pipeline {
                         // TODO - Should add api calls and logic check until they are ready.
                         timeout(time: 5, unit: 'MINUTES') {
                             waitUntil {
-                                if (!awsLoadBalancerControllerDeployed) {
+                                def output = sh (
+                                    script: "kubectl get deployment -n web-app aws-load-balancer-controller -o jsonpath='{.status.availableReplicas}' || echo 0",
+                                    returnStdout: true
+                                ).trim()
+
+                                // if output is a #, set it, if not set it to 0.
+                                def availableReplicas = output.isInteger() ? output.toInteger : 0
+                                echo "Available Replicas: ${availableReplicas}"
+
+                                if (availableReplicas == 0) {
                                     echo "Waiting for loadbalance to be deployed..."
                                     sleep 10 // wait 10 seconds before next check
+                                    return false
                                 }
-                                return awsLoadBalancerControllerDeployed
+                                return true
                             }
                         }
 
