@@ -159,7 +159,7 @@ pipeline {
                         // TODO: The below seems to work, but shows: "Error from server (notFound): serviceaccounts "aws-load-balancer-controller" not found"
                         // Detect if the "aws-load-balancer-controller" (Kubernetes Service Account) exists
                         def awsLoadBalancerControllerExists = sh (
-                            script: "kubectl get serviceaccount aws-load-balancer-controller -n kube-system > /dev/null 2>&1",
+                            script: "kubectl get serviceaccount aws-load-balancer-controller -n web-app > /dev/null 2>&1",
                             returnStatus: true
                         ) == 0
 
@@ -176,7 +176,7 @@ pipeline {
                             sh """
                                 eksctl create iamserviceaccount \
                                     --cluster=EKSPublicCluster \
-                                    --namespace=kube-system \
+                                    --namespace=web-app \
                                     --name=aws-load-balancer-controller \
                                     --attach-policy-arn=arn:aws:iam::${AWSAccountId}:policy/AWSLoadBalancerControllerIAMPolicy \
                                     --override-existing-serviceaccounts \
@@ -186,7 +186,7 @@ pipeline {
                         }
 
                         def awsLoadBalancerControllerDeployed = sh (
-                            script: "kubectl get deployment -n kube-system aws-load-balancer-controller -o jsonpath='{.status.availableReplicas}'",
+                            script: "kubectl get deployment -n web-app aws-load-balancer-controller -o jsonpath='{.status.availableReplicas}'",
                             returnStatus: true
                         ) == 0
 
@@ -196,7 +196,7 @@ pipeline {
                             sh 'helm repo add eks https://aws.github.io/eks-charts'
                             sh 'helm repo update eks'
                             sh 'helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
-                                -n kube-system \
+                                -n web-app \
                                 --set clusterName=EKSPublicCluster \
                                 --set serviceAccount.create=false \
                                 --set serviceAccount.name=aws-load-balancer-controller'
@@ -218,7 +218,7 @@ pipeline {
                         }
 
                         // Test if the AWS Load Balancer Controller is (finally) installed
-                        sh 'kubectl get deployment -n kube-system aws-load-balancer-controller'
+                        sh 'kubectl get deployment -n web-app aws-load-balancer-controller'
 
                         // Create the Kubernetes Service for the web-app
                         sh 'kubectl apply -f ./kubernetes/web-app-service.yml'

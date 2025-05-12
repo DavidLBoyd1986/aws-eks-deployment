@@ -15,6 +15,7 @@ spec:
       labels:
         app: web-app-webgoat
     spec:
+      serviceAccountName: aws-load-balancer-controller
       containers:
       - name: web-app
         image: webgoat/webgoat
