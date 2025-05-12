@@ -35,20 +35,31 @@ pipeline {
                         def TEST_ADD = "$BASTION_USERNAME" + "_TEST"
                         echo "$TEST_ADD"
 
-                        // Deploys the Bastion Host VPC and Infrastructure Stacks
+                        // Replace the variables in the paramters.json file with the actual values:
+                        sh """
+                            sed -i 's|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g' parameters.json
+                            sed -i 's|\\\$BASTION_USERNAME|${BASTION_USERNAME}|g' parameters.json
+                            sed -i 's|\\\$BASTION_USERNAME|${BASTION_USERNAME}|g' parameters.json
+                        """
+
+                        // Test the variables were replaced successfully
+                        sh "cat parameters.json"
+
+                        // Deploys the Bastion Host Networking Stack
                         echo "Deploy the BH Networking stack"
                         sh 'aws cloudformation deploy \
                             --stack-name bh-vpc-stack \
                             --template-file ./IaC/bastion_host_vpc_deployment.yml \
                             --region $REGION'
 
-                        // Deploys the EKS VPC and Infrastructure Stacks
+                        // Deploys the EKS Networking Stack
                         echo "Deploy the EKS Networking stack"
                         sh 'aws cloudformation deploy \
                             --stack-name eks-vpc-stack \
                             --template-file ./IaC/eks_vpc_deployment.yml \
                             --region $REGION'
 
+                        // Deploys the BH and EKS IAM Stacks
                         echo "Deploy the BH IAM stack"
                         sh 'aws cloudformation deploy \
                             --stack-name bh-iam-stack \
@@ -70,6 +81,7 @@ pipeline {
                             --template-file ./IaC/eks_bh_vpc_peering_deployment.yml \
                             --region $REGION'
 
+                        // Deploys the EKS Infrastructure Stack
                         echo "Deploy the EKS Infrastructure Stack"
                         sh 'aws cloudformation deploy \
                             --stack-name eks-infrastructure-stack \
@@ -123,6 +135,7 @@ pipeline {
 
                         // Configure a Service/Ingress to allow connections to the application
 
+
                         // Detect if the AWSLoadBalancerControllerIAMPolicy exists
                         def awsLoadBalancerControllerPolicyExists = sh (
                             script: "aws iam list-policies --scope Local --query 'Policies[].PolicyName' --output text | grep 'AWSLoadBalancerControllerIAMPolicy' > /dev/null 2>&1",
@@ -143,9 +156,10 @@ pipeline {
                         ).trim()
                         echo "AWS Account ID is ${AWSAccountId}"
 
+                        // TODO: The below seems to work, but shows: "Error from server (notFound): serviceaccounts "aws-load-balancer-controller" not found"
                         // Detect if the "aws-load-balancer-controller" (Kubernetes Service Account) exists
                         def awsLoadBalancerControllerExists = sh (
-                            script: "kubectl get serviceaccount aws-load-balancer-controller -n kube-system | grep 'aws-load-balancer-controller' > /dev/null 2>&1",
+                            script: "kubectl get serviceaccount aws-load-balancer-controller -n kube-system > /dev/null 2>&1",
                             returnStatus: true
                         ) == 0
 
@@ -179,6 +193,23 @@ pipeline {
                             --set clusterName=EKSPublicCluster \
                             --set serviceAccount.create=false \
                             --set serviceAccount.name=aws-load-balancer-controller'
+
+                        // Need to wait for these pods to be deployed and running
+                        // TODO - Should add api calls and logic check until they are ready.
+                        timeout(time: 5, unit: 'MINUTES') {
+                            waitUntil {
+                                def awsLoadBalancerControllerDeployed = sh (
+                                    script: "kubectl get deployment -n kube-system aws-load-balancer-controller -o jsonpath='{.status.availableReplicas}'"
+                                    returnStatus: true
+                                )
+
+                                if (!awsLoadBalancerControllerDeployed) {
+                                    echo "Waiting for loadbalance to be deployed..."
+                                    sleep 10 // wait 10 seconds before next check
+                                }
+                                return awsLoadBalancerControllerDeployed
+                            }
+                        }
 
                         // Test if the AWS Load Balancer Controller is (finally) installed
                         sh 'kubectl get deployment -n kube-system aws-load-balancer-controller'

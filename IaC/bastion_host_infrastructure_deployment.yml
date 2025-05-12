@@ -98,8 +98,6 @@ Resources:
             tar xvf helm.tar.gz
             cp -p linux-amd64/helm /usr/local/bin/
 
-
-
   windowsBastionHost:
     Type: AWS::EC2::Instance
     Properties: 
