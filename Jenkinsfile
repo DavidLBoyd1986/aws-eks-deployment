@@ -151,20 +151,24 @@ pipeline {
 
                         // Must associate an OIDC (OpenID Connect) provider with the cluster
                         if (!awsLoadBalancerControllerExists) {
-                            sh 'eksctl utils associate-iam-oidc-provider \
-                                --region us-east-1 \
-                                --cluster EKSPublicCluster \
-                                --approve'
+                            sh """
+                                eksctl utils associate-iam-oidc-provider \
+                                    --region $REGION \
+                                    --cluster EKSPublicCluster \
+                                    --approve'
+                            """
                         }
                         if (!awsLoadBalancerControllerExists) {
-                            sh 'eksctl create iamserviceaccount \
-                                --cluster=EKSPublicCluster \
-                                --namespace=kube-system \
-                                --name=aws-load-balancer-controller \
-                                --attach-policy-arn=arn:aws:iam::${AWSAccountId}:policy/AWSLoadBalancerControllerIAMPolicy \
-                                --override-existing-serviceaccounts \
-                                --region $REGION \
-                                --approve'
+                            sh """
+                                eksctl create iamserviceaccount \
+                                    --cluster=EKSPublicCluster \
+                                    --namespace=kube-system \
+                                    --name=aws-load-balancer-controller \
+                                    --attach-policy-arn=arn:aws:iam::${AWSAccountId}:policy/AWSLoadBalancerControllerIAMPolicy \
+                                    --override-existing-serviceaccounts \
+                                    --region $REGION \
+                                    --approve'
+                            """
                         }
 
                         // Install the AWS Load Balancer Controller using Helm
