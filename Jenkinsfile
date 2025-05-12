@@ -196,7 +196,7 @@ pipeline {
                             sh 'helm repo add eks https://aws.github.io/eks-charts'
                             sh 'helm repo update eks'
                             sh 'helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
-                                -n web-app \
+                                -n kube-system \
                                 --set clusterName=EKSPublicCluster \
                                 --set serviceAccount.create=false \
                                 --set serviceAccount.name=aws-load-balancer-controller'
