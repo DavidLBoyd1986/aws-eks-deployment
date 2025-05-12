@@ -39,7 +39,7 @@ pipeline {
                         sh """
                             sed -i 's|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g' parameters.json
                             sed -i 's|\\\$BASTION_USERNAME|${BASTION_USERNAME}|g' parameters.json
-                            sed -i 's|\\\$BASTION_USERNAME|${BASTION_USERNAME}|g' parameters.json
+                            sed -i 's|\\\$BASTION_PASSWORD|${BASTION_PASSWORD}|g' parameters.json
                         """
 
                         // Test the variables were replaced successfully
@@ -185,24 +185,30 @@ pipeline {
                             """
                         }
 
-                        // Install the AWS Load Balancer Controller using Helm
-                        sh 'helm repo add eks https://aws.github.io/eks-charts'
-                        sh 'helm repo update eks'
-                        sh 'helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
-                            -n kube-system \
-                            --set clusterName=EKSPublicCluster \
-                            --set serviceAccount.create=false \
-                            --set serviceAccount.name=aws-load-balancer-controller'
+                        def awsLoadBalancerControllerDeployed = sh (
+                            script: "kubectl get deployment -n kube-system aws-load-balancer-controller -o jsonpath='{.status.availableReplicas}'",
+                            returnStatus: true
+                        )
+
+                        // Install or Update the deployment if it is already installed
+                        if (!awsLoadBalancerControllerDeployed) {
+                            // Install the AWS Load Balancer Controller using Helm
+                            sh 'helm repo add eks https://aws.github.io/eks-charts'
+                            sh 'helm repo update eks'
+                            sh 'helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+                                -n kube-system \
+                                --set clusterName=EKSPublicCluster \
+                                --set serviceAccount.create=false \
+                                --set serviceAccount.name=aws-load-balancer-controller'
+                        } else {
+                            echo "aws-load-balancer-deployment already exists, running upgrade..."
+                            // Might add an 'helm update' command here, but right now don't see a reason to.
+                        }
 
                         // Need to wait for these pods to be deployed and running
                         // TODO - Should add api calls and logic check until they are ready.
                         timeout(time: 5, unit: 'MINUTES') {
                             waitUntil {
-                                def awsLoadBalancerControllerDeployed = sh (
-                                    script: "kubectl get deployment -n kube-system aws-load-balancer-controller -o jsonpath='{.status.availableReplicas}'",
-                                    returnStatus: true
-                                )
-
                                 if (!awsLoadBalancerControllerDeployed) {
                                     echo "Waiting for loadbalance to be deployed..."
                                     sleep 10 // wait 10 seconds before next check
