@@ -159,7 +159,7 @@ pipeline {
                         // TODO: The below seems to work, but shows: "Error from server (notFound): serviceaccounts "aws-load-balancer-controller" not found"
                         // Detect if the "aws-load-balancer-controller" (Kubernetes Service Account) exists
                         def awsLoadBalancerControllerExists = sh (
-                            script: "kubectl get serviceaccount aws-load-balancer-controller -n web-app > /dev/null 2>&1",
+                            script: "kubectl get serviceaccount aws-load-balancer-controller -n kube-system > /dev/null 2>&1",
                             returnStatus: true
                         ) == 0
 
@@ -176,7 +176,7 @@ pipeline {
                             sh """
                                 eksctl create iamserviceaccount \
                                     --cluster=EKSPublicCluster \
-                                    --namespace=web-app \
+                                    --namespace=kube-system \
                                     --name=aws-load-balancer-controller \
                                     --attach-policy-arn=arn:aws:iam::${AWSAccountId}:policy/AWSLoadBalancerControllerIAMPolicy \
                                     --override-existing-serviceaccounts \
@@ -186,7 +186,7 @@ pipeline {
                         }
 
                         def awsLoadBalancerControllerDeployed = sh (
-                            script: "kubectl get deployment -n web-app aws-load-balancer-controller -o jsonpath='{.status.availableReplicas}'",
+                            script: "kubectl get deployment -n kube-system aws-load-balancer-controller -o jsonpath='{.status.availableReplicas}'",
                             returnStatus: true
                         ) == 0
 
@@ -210,7 +210,7 @@ pipeline {
                         timeout(time: 5, unit: 'MINUTES') {
                             waitUntil {
                                 def output = sh (
-                                    script: "kubectl get deployment -n web-app aws-load-balancer-controller -o jsonpath='{.status.availableReplicas}' || echo 0",
+                                    script: "kubectl get deployment -n kube-system aws-load-balancer-controller -o jsonpath='{.status.availableReplicas}' || echo 0",
                                     returnStdout: true
                                 ).trim()
 
