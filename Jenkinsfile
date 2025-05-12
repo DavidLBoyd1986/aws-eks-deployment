@@ -199,7 +199,7 @@ pipeline {
                         timeout(time: 5, unit: 'MINUTES') {
                             waitUntil {
                                 def awsLoadBalancerControllerDeployed = sh (
-                                    script: "kubectl get deployment -n kube-system aws-load-balancer-controller -o jsonpath='{.status.availableReplicas}'"
+                                    script: "kubectl get deployment -n kube-system aws-load-balancer-controller -o jsonpath='{.status.availableReplicas}'",
                                     returnStatus: true
                                 )
 
