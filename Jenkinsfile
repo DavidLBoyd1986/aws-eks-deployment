@@ -215,10 +215,10 @@ pipeline {
                                 ).trim()
 
                                 // if output is a #, set it, if not set it to 0.
-                                def availableReplicas = output.isInteger() ? output.toInteger : 0
-                                echo "Available Replicas: ${availableReplicas}"
+                                // def availableReplicas = output.isInteger() ? output.toInteger : 0
+                                echo "Available Replicas: ${output}"
 
-                                if (availableReplicas == 0) {
+                                if (output == 0) {
                                     echo "Waiting for loadbalance to be deployed..."
                                     sleep 10 // wait 10 seconds before next check
                                     return false
