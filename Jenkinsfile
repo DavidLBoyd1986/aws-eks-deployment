@@ -188,7 +188,7 @@ pipeline {
                         def awsLoadBalancerControllerDeployed = sh (
                             script: "kubectl get deployment -n kube-system aws-load-balancer-controller -o jsonpath='{.status.availableReplicas}'",
                             returnStatus: true
-                        )
+                        ) == 0
 
                         // Install or Update the deployment if it is already installed
                         if (!awsLoadBalancerControllerDeployed) {
