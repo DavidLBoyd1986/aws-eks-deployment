@@ -289,7 +289,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443 
-          CidrIp: 192.168.1.0/24
+          CidrIp: !Ref VpcBlock
       SecurityGroupEgress:
         - IpProtocol: tcp
           FromPort: 443
@@ -305,7 +305,8 @@ Resources:
       GroupName: WorkerNodeSecurityGroup 
       SecurityGroupIngress:
 # PUBLIC ACCESS RULES:
-# WebGoat runs on port 8080, other two are obviously for DNS, they might not be needed.
+  # These can be deleted after the stack has been fully deployed.
+  # They are only added so the CICD Pipeline can configure the cluster.
         - IpProtocol: tcp
           FromPort: 8080 
           ToPort: 8080
@@ -318,49 +319,68 @@ Resources:
           FromPort: 443 
           ToPort: 443
           CidrIp: !Ref personalPublicIp
-        - IpProtocol: udp
+        - IpProtocol: udp # Test delete
           FromPort: 0
           ToPort: 53
           CidrIp: !Ref personalPublicIp
-        - IpProtocol: tcp
+        - IpProtocol: tcp # Test delete
           FromPort: 53
           ToPort: 53
           CidrIp: !Ref personalPublicIp
-        - IpProtocol: icmp
+        - IpProtocol: icmp # Test delete
           FromPort: -1
           ToPort: -1
           CidrIp: !Ref personalPublicIp
-        - IpProtocol: icmpv6
+        - IpProtocol: icmpv6 # Test delete
           FromPort: -1
           ToPort: -1
           CidrIp: !Ref personalPublicIp
-# Uncomment below if you want to use NodePort Services
-#        - IpProtocol: tcp
-#          FromPort: 30000
-#          ToPort: 32767
-#          CidrIp: !Ref personalPublicIp 
-#NODE ACCESS RULES:
+# NODE ACCESS RULES:
+  # These rules allow EKS VPC network traffic to access the Nodes.
+  # A lot of these are only included because they are common non-standard http(s) ports:
+  # i.e. 8080, 8443, 9443 - 9443 is required for the AWS Load Balancer Controller
+        # Uncomment to allow all traffic
+        #- IpProtocol: tcp
+        #  FromPort: 0 
+        #  ToPort: 65535 
+        #  CidrIp: 192.168.1.0/24 
+        # Uncomment to use NodePort Services
+        #- IpProtocol: tcp
+        #  FromPort: 30000
+        #  ToPort: 32767
+        #  CidrIp: !Ref personalPublicIp 
+        - IpProtocol: tcp # Required
+          FromPort: 80 
+          ToPort: 80
+          CidrIp: !Ref VpcBlock
         - IpProtocol: tcp
+          FromPort: 8080 
+          ToPort: 8080
+          CidrIp: !Ref VpcBlock
+        - IpProtocol: tcp # Required
           FromPort: 443
           ToPort: 443
-          CidrIp: 192.168.1.0/24 
+          CidrIp: !Ref VpcBlock
         - IpProtocol: tcp
+          FromPort: 8443
+          ToPort: 8443
+          CidrIp: !Ref VpcBlock
+        - IpProtocol: tcp # Required
           FromPort: 9443
           ToPort: 9443
-          CidrIp: 192.168.1.0/24 
-        - IpProtocol: tcp
+          CidrIp: !Ref VpcBlock
+        - IpProtocol: tcp # Required
           FromPort: 10250
           ToPort: 10250
-          CidrIp: 192.168.1.0/24
-#BASTION HOST ACCESS RULES:
-        - IpProtocol: tcp
-          FromPort: 0 
-          ToPort: 65535 
-          CidrIp: !ImportValue BHVpcCidrBlock
-#        - IpProtocol: tcp
-#          FromPort: 22
-#          ToPort: 22
-#          CidrIp: !ImportValue BHVpcCidrBlock
+          CidrIp: !Ref VpcBlock
+# BASTION HOST ACCESS RULES:
+  # These allow traffic from the Bastion Host VPC to interact with the Cluster
+  # A lot of these are only included because they are common non-standard http(s) ports:
+        # Uncomment to allow all traffic
+        #- IpProtocol: tcp
+        #  FromPort: 0 
+        #  ToPort: 65535 
+        #  CidrIp: !ImportValue BHVpcCidrBlock
         - IpProtocol: icmp
           FromPort: -1
           ToPort: -1
@@ -369,6 +389,27 @@ Resources:
           FromPort: -1
           ToPort: -1
           CidrIp: !ImportValue BHVpcCidrBlock
+        - IpProtocol: tcp # Required
+          FromPort: 80 
+          ToPort: 80
+          CidrIp: !ImportValue BHVpcCidrBlock
+        - IpProtocol: tcp
+          FromPort: 8080 
+          ToPort: 8080
+          CidrIp: !ImportValue BHVpcCidrBlock
+        - IpProtocol: tcp # Required
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !ImportValue BHVpcCidrBlock
+        - IpProtocol: tcp
+          FromPort: 8443
+          ToPort: 8443
+          CidrIp: !ImportValue BHVpcCidrBlock
+        - IpProtocol: tcp 
+          FromPort: 9443
+          ToPort: 9443
+          CidrIp: !ImportValue BHVpcCidrBlock
+# BASTION HOST ACCESS RULES:
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
