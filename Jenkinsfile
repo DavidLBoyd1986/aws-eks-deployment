@@ -44,7 +44,8 @@ pipeline {
                         """
 
                         // Test the variables were replaced successfully
-                        sh "cat parameters.json"
+                        sh "cat ./parameters/bh_infrastructure_parameters.json"
+                        sh "cat ./parameters/eks_infrastructure_parameters.json"
 
                         // ---------------------------------------------
                         // DEPLOY THE AWS RESOURCES USING CLOUDFORMATION
