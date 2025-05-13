@@ -32,7 +32,7 @@ pipeline {
 
                         // Replace the variables in the parameters.json file with the actual values:
                         sh """
-                            sed -i 's|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g' ./parameters/eks_infrastructure_parameters.json
+                            sed -i 's|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g' ./parameters/eks_vpc_parameters.json
                             sed -i 's|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g' ./parameters/bh_infrastructure_parameters.json
                             sed -i 's|\\\$BASTION_USERNAME|${BASTION_USERNAME}|g' ./parameters/bh_infrastructure_parameters.json
                             sed -i 's|\\\$BASTION_PASSWORD|${BASTION_PASSWORD}|g' ./parameters/bh_infrastructure_parameters.json
@@ -45,7 +45,7 @@ pipeline {
 
                         // Test the variables were replaced successfully
                         sh "cat ./parameters/bh_infrastructure_parameters.json"
-                        sh "cat ./parameters/eks_infrastructure_parameters.json"
+                        sh "cat ./parameters/eks_vpc_parameters.json"
 
                         // ---------------------------------------------
                         // DEPLOY THE AWS RESOURCES USING CLOUDFORMATION
@@ -59,11 +59,21 @@ pipeline {
                             --region $REGION'
 
                         // Deploys the EKS Networking Stack
-                        echo "Deploy the EKS Networking stack"
-                        sh 'aws cloudformation deploy \
-                            --stack-name eks-vpc-stack \
-                            --template-file ./IaC/eks_vpc_deployment.yml \
-                            --region $REGION'
+                        def eksStackExists = sh (
+                            script: "aws cloudformation describe-stacks --region $REGION --stack-name eks-vpc-stack > /dev/null 2>&1",
+                            returnStatus: true
+                        ) == 0
+                        if (!eksStackExists) {
+                            echo "Deploy the EKS Networking Stack"
+                            sh 'aws cloudformation create-stack \
+                                --stack-name eks-vpc-stack \
+                                --template-body file://./IaC/eks_vpc_deployment.yml \
+                                --parameters file://./parameters/eks_vpc_parameters.json \
+                                --capabilities CAPABILITY_NAMED_IAM \
+                                --region $REGION'
+                        } else {
+                            echo "EKS Networking Stack already exists, skipping deployment..."
+                        }
 
                         // Deploys the BH and EKS IAM Stacks
                         echo "Deploy the BH IAM stack"
@@ -88,21 +98,12 @@ pipeline {
                             --region $REGION'
 
                         // Deploys the EKS Infrastructure Stack, if it doesn't already exist 
-                        def eksStackExists = sh (
-                            script: "aws cloudformation describe-stacks --region $REGION --stack-name eks-infrastructure-stack > /dev/null 2>&1",
-                            returnStatus: true
-                        ) == 0
-                        if (!eksStackExists) {
-                            echo "Deploy the EKS Infrastructure Stack"
-                            sh 'aws cloudformation create-stack \
-                                --stack-name eks-infrastructure-stack \
-                                --template-body file://./IaC/eks_infrastructure_deployment.yml \
-                                --parameters file://./parameters/eks_infrastructure_parameters.json \
-                                --capabilities CAPABILITY_NAMED_IAM \
-                                --region $REGION'
-                        } else {
-                            echo "EKS Infrastructure Stack already exists, skipping deployment..."
-                        }
+                        echo "Deploy the EKS Infrastructure Stack"
+                        sh "aws cloudformation deploy \
+                            --stack-name eks-infrastructure-stack \
+                            --template-file ./IaC/eks_infrastructure_deployment.yml \
+                            --capabilities CAPABILITY_NAMED_IAM \
+                            --region $REGION"
 
                         // Deploys the BH Infrastructure Stack, if it doesn't already exist 
                         def bhStackExists = sh (
