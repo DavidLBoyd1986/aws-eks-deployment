@@ -4,7 +4,8 @@ pipeline {
 
     environment {
         REGION = "us-east-1"
-        PUBLIC_IP = credentials('2ef53f51-8a81-400a-be7f-538cdddad37b')
+        CLUSTER_NAME = "EKSPublicCluster"
+        // PUBLIC_IP = credentials('2ef53f51-8a81-400a-be7f-538cdddad37b')
     }
 
     stages {
@@ -25,15 +26,28 @@ pipeline {
                                      usernamePassword(credentialsId: 'a797bda4-6f58-4006-8434-106015bbde1a', passwordVariable: 'BASTION_PASSWORD', usernameVariable: 'BASTION_USERNAME'),
                                      string(credentialsId: '2ef53f51-8a81-400a-be7f-538cdddad37b', variable: 'PUBLIC_IP_RANGE')]) {
 
-                        // Replace the variables in the paramters.json file with the actual values:
+                        // --------------------------------------
+                        // CONFIGURE ALL THE VARIABLES TO BE USED
+                        //---------------------------------------
+
+                        // Replace the variables in the parameters.json file with the actual values:
                         sh """
                             sed -i 's|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g' parameters.json
                             sed -i 's|\\\$BASTION_USERNAME|${BASTION_USERNAME}|g' parameters.json
                             sed -i 's|\\\$BASTION_PASSWORD|${BASTION_PASSWORD}|g' parameters.json
                         """
 
+                        // Replace the variables ($CLUSTER_NAME) in other files with the actual values:
+                        sh """
+                            sed -i 's|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g' ./IaC/eks_infrastructure_deployment.yml
+                        """
+
                         // Test the variables were replaced successfully
                         sh "cat parameters.json"
+
+                        // ---------------------------------------------
+                        // DEPLOY THE AWS RESOURCES USING CLOUDFORMATION
+                        //----------------------------------------------
 
                         // Deploys the Bastion Host Networking Stack
                         echo "Deploy the BH Networking stack"
@@ -48,22 +62,6 @@ pipeline {
                             --stack-name eks-vpc-stack \
                             --template-file ./IaC/eks_vpc_deployment.yml \
                             --region $REGION'
-
-
-                        // TODO - Delete this if it works only with tagging subnets!!!!!
-                        // Require subnet names to use as kubernetes annotations for load balancers
-                        //def eksVpcOutputJson = sh(
-                        //    script: "aws cloudformation describe-stacks --stack-name eks-vpc-stack --region $REGION --query 'Stacks[0].Outputs' --output json",
-                        //    returnStdout: true
-                        //).trim()
-
-                        //def eksVpcOutputs = readJSON text: eksVpcOutputJson
-                        //def eksPublicSubnet = eksVpcOutputs.find { it.OutputKey == 'EKSPublicCluster-PublicSubnet' }?.OutputValue
-                        //def eksPrivateSubnet1 = eksVpcOutputs.find { it.OutputKey == 'EKSPublicCluster-PrivateSubnetOne' }?.OutputValue
-                        //def eksPrivateSubnet2 = eksVpcOutputs.find { it.OutputKey == 'EKSPublicCluster-PrivateSubnetTwo' }?.OutputValue
-                        //echo "eksPublicSubnet = ${eksPublicSubnet}"
-                        //echo "eksPrivateSubnet1 = ${eksPrivateSubnet1}"
-                        //echo "eksPrivateSubnet2 = ${eksPrivateSubnet2}"
 
                         // Deploys the BH and EKS IAM Stacks
                         echo "Deploy the BH IAM stack"
@@ -87,22 +85,29 @@ pipeline {
                             --template-file ./IaC/eks_bh_vpc_peering_deployment.yml \
                             --region $REGION'
 
-                        // Deploys the EKS Infrastructure Stack
-                        echo "Deploy the EKS Infrastructure Stack"
-                        sh 'aws cloudformation deploy \
-                            --stack-name eks-infrastructure-stack \
-                            --template-file ./IaC/eks_infrastructure_deployment.yml \
-                            --region $REGION'
+                        // Deploys the EKS Infrastructure Stack, if it doesn't already exist 
+                        def eksStackExists = sh (
+                            script: "aws cloudformation describe-stacks --region $REGION --stack-name eks-infrastructure-stack > /dev/null 2>&1",
+                            returnStatus: true
+                        ) == 0
+                        if (!eksStackExists) {
+                            echo "Deploy the EKS Infrastructure Stack"
+                            sh 'aws cloudformation create-stack \
+                                --stack-name eks-infrastructure-stack \
+                                --template-body file://./IaC/eks_infrastructure_deployment.yml \
+                                --parameters file://./parameters.json \
+                                --capabilities CAPABILITY_NAMED_IAM \
+                                --region $REGION'
+                        } else {
+                            echo "EKS Infrastructure Stack already exists, skipping deployment..."
+                        }
 
-                        // TODO - update parameters.json with your public IP. It is currently wide open!!
-                        def stackExists = sh (
+                        // Deploys the BH Infrastructure Stack, if it doesn't already exist 
+                        def bhStackExists = sh (
                             script: "aws cloudformation describe-stacks --region $REGION --stack-name bh-infrastructure-stack > /dev/null 2>&1",
                             returnStatus: true
                         ) == 0
-                        // above defines a variable, script runs the command and hides the output
-                        // returnStatus: true - indicates that script should return the status of the command.
-                        // '== 0' returns true if the command returned '0' (succeeded) or false if it's anything else (failed)
-                        if (!stackExists) {
+                        if (!bhStackExists) {
                             echo "Deploy the BH Infrastructure Stack"
                             sh 'aws cloudformation create-stack \
                                 --stack-name bh-infrastructure-stack \
@@ -114,14 +119,43 @@ pipeline {
                             echo "BH Infrastructure Stack already exists, skipping deployment..."
                         }
 
+                        // --------------------------------
+                        // Initial Kubernetes Configuration 
+                        //---------------------------------
+
                         // Configure kubectl to connect to eks cluster.
                         echo "Configure kubectl to connect to cluster."
                         sh 'kubectl version --client'
                         sh 'aws sts get-caller-identity'
-                        sh 'aws eks update-kubeconfig --region $REGION --name EKSPublicCluster'
-                        // TODO - Make Cluster Name a parameter
+                        sh "aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME"
 
-                        // Configure the AWS Load Balancer Controller
+                        // Get the ARN of the BastionHostRole so it can be given access to the EKS Cluster
+                        def output = sh(
+                            script: """
+                                    aws cloudformation describe-stacks \
+                                    --stack-name bh-iam-stack \
+                                    --region $REGION \
+                                    --query "Stacks[0].Outputs[?OutputKey=='BastionHostRoleArn'].OutputValue" \
+                                    --output text
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        echo "BastionHostRoleArn: ${output}"
+                        BASTION_HOST_ROLE_ARN = output
+
+                        // Add Bastion Host Role to aws-auth so it can access the Cluster:
+                        sh """
+                            eksctl create iamidentitymapping \
+                            --cluster $CLUSTER_NAME \
+                            --region $REGION \
+                            --arn $BASTION_HOST_ROLE_ARN \
+                            --username system:node:{{EC2PrivateDNSName}} \
+                            --group system:masters
+                        """
+
+                        // ------------------------------------------
+                        // CONFIGURE THE AWS LOAD BALANCER CONTROLLER
+                        //-------------------------------------------
 
                         // Detect if the AWSLoadBalancerControllerIAMPolicy exists
                         def awsLoadBalancerControllerPolicyExists = sh (
@@ -129,6 +163,7 @@ pipeline {
                             returnStatus: true
                         ) == 0
 
+                        // If AWSLoadBalancerControllerIAMPolicy does NOT exist, create it
                         if (!awsLoadBalancerControllerPolicyExists) {
                             sh 'curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.12.0/docs/install/iam_policy.json'
                             sh 'aws iam create-policy --policy-name AWSLoadBalancerControllerIAMPolicy --policy-document file://iam_policy.json'
@@ -155,24 +190,25 @@ pipeline {
                             sh """
                                 eksctl utils associate-iam-oidc-provider \
                                     --region $REGION \
-                                    --cluster EKSPublicCluster \
+                                    --cluster $CLUSTER_NAME \
                                     --approve
                             """
                         }
 
                         // Get the OIDC_ID of the OIDC Provider
                         def OIDC_ID = sh (
-                            script: "aws eks describe-cluster --name EKSPublicCluster --region $REGION \
+                            script: "aws eks describe-cluster --name $CLUSTER_NAME --region $REGION \
                                      --query 'cluster.identity.oidc.issuer' --output text | cut -d '/' -f 5",
                             returnStdout: true
                         ).trim()
                         echo "OIDC_ID = ${OIDC_ID}"
+
                         // Create the ServiceAccount
                         // - A Role is created, the previous policy is attached, granting the service account AWS permissions
                         if (!awsLoadBalancerControllerExists) {
                             sh """
                                 eksctl create iamserviceaccount \
-                                    --cluster=EKSPublicCluster \
+                                    --cluster=$CLUSTER_NAME \
                                     --namespace=kube-system \
                                     --name=aws-load-balancer-controller \
                                     --role-name=AWSLoadBalancerControllerRole \
@@ -190,6 +226,7 @@ pipeline {
                         sh "kubectl get serviceaccount aws-load-balancer-controller \
                             --namespace kube-system --output yaml"
 
+                        // Detect if the "aws-load-balancer-controller" was Deployed
                         def awsLoadBalancerControllerDeployed = sh (
                             script: "kubectl get deployment -n kube-system aws-load-balancer-controller -o jsonpath='{.status.availableReplicas}'",
                             returnStatus: true
@@ -200,11 +237,13 @@ pipeline {
                             // Install the AWS Load Balancer Controller using Helm
                             sh 'helm repo add eks https://aws.github.io/eks-charts'
                             sh 'helm repo update eks'
-                            sh 'helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+                            sh """
+                                helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
                                 -n kube-system \
-                                --set clusterName=EKSPublicCluster \
+                                --set clusterName=$CLUSTER_NAME \
                                 --set serviceAccount.create=false \
-                                --set serviceAccount.name=aws-load-balancer-controller'
+                                --set serviceAccount.name=aws-load-balancer-controller
+                            """
                         } else {
                             echo "aws-load-balancer-deployment already exists, running upgrade..."
                             // Might add an 'helm update' command here, but right now don't see a reason to.
@@ -237,6 +276,10 @@ pipeline {
                         // Test if the AWS Load Balancer Controller is (finally) installed
                         sh "kubectl get all -n kube-system --selector app.kubernetes.io/name=aws-load-balancer-controller"
 
+                        // ------------------------------
+                        // DEPLOY THE APPLICATION TO EKS:
+                        //-------------------------------
+
                         // Configure Kubernetes with namespace and deploy the app:
                         def namespaceExists = sh (
                             script: "kubectl get namespace web-app > /dev/null 2>&1",
@@ -253,15 +296,6 @@ pipeline {
                         sh 'kubectl get all -n web-app'
                         sh 'kubectl get pods -n web-app'
 
-                        // TODO - Delete this if it works only with tagging subnets!!!!!
-                        // Add the subnets to the service files as Annotations
-                        //sh """
-                        //sed -i 's|{{EKS_PUBLIC_SUBNET}}|${eksPublicSubnet}|g' ./kubernetes/web-app-nlb.yml
-                        //sed -i 's|{{EKS_PRIVATE_SUBNET_1}}|${eksPrivateSubnet1}|g' ./kubernetes/web-app-nlb.yml
-                        //sed -i 's|{{EKS_PRIVATE_SUBNET_2}}|${eksPrivateSubnet1}|g' ./kubernetes/web-app-nlb.yml
-                        //"""
-                        //sh 'cat ./kubernetes/web-app-nlb.yml'
-
                         // Create the Kubernetes Service for the web-app-nlb
                         sh 'kubectl apply -f ./kubernetes/web-app-nlb.yml'
                         sh 'kubectl -n web-app describe service web-app-nlb'
@@ -269,17 +303,30 @@ pipeline {
                         // Tests and outputs
                         sh 'kubectl get all -n web-app'
                         echo "web-app-nlb loadbalancer public address:"
+
+                        echo 'Sleeping for 20 seconds...'
+                        sleep time: 20, unit: 'SECONDS'
+
+                        // Creates an NLB, and Kubernetes service for NLB to access Application Pods
                         sh "kubectl get service web-app-nlb --namespace web-app \
                             --output jsonpath='{.status.loadBalancer.ingress[0].hostname}'"
 
-                        // Create the Kubernetes Service for the web-app
+                        // Below is for creating an ALB instead of an NLB.
+                            // To use an ALB:
+                            //   Comment out above 'sh' command.
+                            //   Uncomment below two commands.
+
+                        // Create the Kubernetes Service for the web-app, allows ALB to access Application Pods
                         //sh 'kubectl apply -f ./kubernetes/web-app-service.yml'
-                        //sh 'kubectl -n web-app describe service web-app-service'
 
-                        // Create the Kubernetes Ingress for the web-app
+                        // Create the Kubernetes Ingress for the web-app, creates the ALB and allows external access through it.
                         //sh 'kubectl apply -f ./kubernetes/web-app-ingress.yml'
-                        //sh 'kubectl -n web-app describe ingress web-app-ingress'
 
+                        // Verify created Load Balancer resources:
+                        sh 'kubectl describe service web-app-nlb -n web-app'
+                        //sh 'kubectl describe service web-app-service -n web-app'
+                        //sh 'kubectl describe ingress web-app-ingress -n web-app'
+                        
                         // TODO - Add some tests to verify the external connections are working.
                         }
                     }

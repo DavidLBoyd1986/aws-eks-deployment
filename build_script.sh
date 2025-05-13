@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Replace with your variables:
+
 echo "Starting deployment...."
 
 # Get the directory where the script is located

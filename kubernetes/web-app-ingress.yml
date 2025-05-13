@@ -16,7 +16,7 @@ spec:
   rules:
     - http:
         paths:
-          - path: /
+          - path: /WebGoat
             pathType: Prefix
             backend:
               service:

@@ -1,30 +1,31 @@
 ---
 Parameters:
 
-  personalPublicIP:
+  personalPublicIp:
     Type: String
+    Default: 0.0.0.0/0 # Defaults to fully public if parameter is deleted from parameters.json
     Description: Public IP of User connecting to the Bastion Hosts.
-    # Must be added to cloudformation command in build_script.sh that deploys this stack.
+    # Must be added added as variable to build_script.sh or as a CICD variable in Gitlab or Jenkins Credential.
   
   userName:
     Type: String
     Description: IAM User added to the Bastion Hosts.
-    # Must be added to cloudformation command in build_script.sh that deploys this stack.
+    # Must be added added as variable to build_script.sh or as a CICD variable in Gitlab or Jenkins Credential.
 
   userPass:
     Type: String
     Description: Password for the IAM User added to the Bastion Hosts.
-    # Must be added to cloudformation command in build_script.sh that deploys this stack.
+    # Must be added added as variable to build_script.sh or as a CICD variable in Gitlab or Jenkins Credential.
 
   bastionHostPublicKey:
     Type: String
     Description: The public ssh key material for user added to the Bastion Hosts
-    # Must be added to cloudformation command in build_script.sh that deploys this stack.
+    # Must be added added as variable to build_script.sh or as a CICD variable in Gitlab or Jenkins Credential.
 
   EKSPublicKey:
     Type: String
     Description: The public ssh key material for accessing EKS Nodes
-    # Must be added to cloudformation command in build_script.sh that deploys this stack.
+    # Must be added added as variable to build_script.sh or as a CICD variable in Gitlab or Jenkins Credential.
     # IMPORTANT - you will have to manually copy the private key to the bastion host to use it.
 
 Resources:
@@ -144,11 +145,11 @@ Resources:
         - IpProtocol: tcp
           FromPort: 3389
           ToPort: 3389
-          CidrIP: !Ref personalPublicIP # Allow inbound traffic from personal IP
+          CidrIP: !Ref personalPublicIp # Allow inbound traffic from personal IP
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIP: !Ref personalPublicIP # Allow inbound traffic from personal IP
+          CidrIP: !Ref personalPublicIp # Allow inbound traffic from personal IP
       Tags: 
       - Key: Deployment
         Value: IaC

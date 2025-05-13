@@ -4,6 +4,12 @@ Description: 'Amazon EKS VPC for an EKS Cluster. This is for a Public facing Clu
 
 Parameters:
 
+  personalPublicIp:
+    Type: String
+    Default: 0.0.0.0/0 # Defaults to fully public if parameter is deleted from parameters.json
+    Description: Add your personal Public IP as a parameter to access the Cluster. The Default value makes the Cluster fully public.
+    # Must be added added as variable to build_script.sh or as a CICD variable in Gitlab or Jenkins Credential.
+
   VpcBlock:
     Type: String
     Default: 192.168.1.0/24
@@ -272,23 +278,25 @@ Resources:
       SubnetId: !Ref PrivateSubnet02
       RouteTableId: !Ref PrivateRouteTable02
 
+# Allows the Cluster's private IP range to access the Control Plane, and the Control Plane to send return traffic anywhere.
   ControlPlaneSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: EKS Control Plane Security Group
       VpcId: !Ref VPC
       GroupName: ControlPlaneSecurityGroup 
-      SecurityGroupEgress:
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443 
-          CidrIp: 0.0.0.0/0
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443 
           CidrIp: 192.168.1.0/24
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443 
+          CidrIp: 0.0.0.0/0
 
+# This Security Group controls all access to the Cluster: Nodes, Pods, etc...
   WorkerNodeSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -296,6 +304,42 @@ Resources:
       VpcId: !Ref VPC
       GroupName: WorkerNodeSecurityGroup 
       SecurityGroupIngress:
+# PUBLIC ACCESS RULES:
+# WebGoat runs on port 8080, other two are obviously for DNS, they might not be needed.
+        - IpProtocol: tcp
+          FromPort: 8080 
+          ToPort: 8080
+          CidrIp: !Ref PersonalPublicIp
+        - IpProtocol: tcp
+          FromPort: 80 
+          ToPort: 80
+          CidrIp: !Ref PersonalPublicIp
+        - IpProtocol: tcp
+          FromPort: 443 
+          ToPort: 443
+          CidrIp: !Ref PersonalPublicIp
+        - IpProtocol: udp
+          FromPort: 0
+          ToPort: 53
+          CidrIp: !Ref PersonalPublicIp
+        - IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Ref PersonalPublicIp
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: !Ref PersonalPublicIp
+        - IpProtocol: icmpv6
+          FromPort: -1
+          ToPort: -1
+          CidrIp: !Ref PersonalPublicIp
+# Uncomment below if you want to use NodePort Services
+#        - IpProtocol: tcp
+#          FromPort: 30000
+#          ToPort: 32767
+#          CidrIp: !Ref PersonalPublicIp 
+#NODE ACCESS RULES:
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
@@ -307,27 +351,16 @@ Resources:
         - IpProtocol: tcp
           FromPort: 10250
           ToPort: 10250
-          CidrIp: 192.168.1.0/24 
-        - IpProtocol: udp
-          FromPort: 53
-          ToPort: 53
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 53
-          ToPort: 53
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 30000
-          ToPort: 32767
-          CidrIp: 0.0.0.0/0
+          CidrIp: 192.168.1.0/24
+#BASTION HOST ACCESS RULES:
         - IpProtocol: tcp
           FromPort: 0 
           ToPort: 65535 
           CidrIp: !ImportValue BHVpcCidrBlock
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: !ImportValue BHVpcCidrBlock
+#        - IpProtocol: tcp
+#          FromPort: 22
+#          ToPort: 22
+#          CidrIp: !ImportValue BHVpcCidrBlock
         - IpProtocol: icmp
           FromPort: -1
           ToPort: -1

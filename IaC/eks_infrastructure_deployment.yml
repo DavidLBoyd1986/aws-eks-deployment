@@ -5,7 +5,7 @@ Description: 'Creates the EKS Infrastructure - Cluster and Nodegroup.'
 Parameters:
   ClusterName:
     Type: String
-    Default: EKSPublicCluster
+    Default: $CLUSTER_NAME
     Description: Name of the EKS Cluster
   NodeGroupName:
     Type: String

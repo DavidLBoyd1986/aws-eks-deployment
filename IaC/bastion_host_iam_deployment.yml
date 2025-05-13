@@ -81,6 +81,12 @@ Resources:
         - !Ref BastionHostRole
 
 Outputs:
+  BastionHostRoleArn:
+    Description: ARN of the Bastion Host Role
+    Value: !GetAtt BastionHostRole.Arn
+    Export:
+      Name: BastionHostRoleArn
+
   InstanceProfileArn:
     Description: Name of the Bastion Host Instance Profile
     Value: !Ref BastionHostInstanceProfile
