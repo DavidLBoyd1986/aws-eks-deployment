@@ -309,36 +309,36 @@ Resources:
         - IpProtocol: tcp
           FromPort: 8080 
           ToPort: 8080
-          CidrIp: !Ref PersonalPublicIp
+          CidrIp: !Ref personalPublicIp
         - IpProtocol: tcp
           FromPort: 80 
           ToPort: 80
-          CidrIp: !Ref PersonalPublicIp
+          CidrIp: !Ref personalPublicIp
         - IpProtocol: tcp
           FromPort: 443 
           ToPort: 443
-          CidrIp: !Ref PersonalPublicIp
+          CidrIp: !Ref personalPublicIp
         - IpProtocol: udp
           FromPort: 0
           ToPort: 53
-          CidrIp: !Ref PersonalPublicIp
+          CidrIp: !Ref personalPublicIp
         - IpProtocol: tcp
           FromPort: 53
           ToPort: 53
-          CidrIp: !Ref PersonalPublicIp
+          CidrIp: !Ref personalPublicIp
         - IpProtocol: icmp
           FromPort: -1
           ToPort: -1
-          CidrIp: !Ref PersonalPublicIp
+          CidrIp: !Ref personalPublicIp
         - IpProtocol: icmpv6
           FromPort: -1
           ToPort: -1
-          CidrIp: !Ref PersonalPublicIp
+          CidrIp: !Ref personalPublicIp
 # Uncomment below if you want to use NodePort Services
 #        - IpProtocol: tcp
 #          FromPort: 30000
 #          ToPort: 32767
-#          CidrIp: !Ref PersonalPublicIp 
+#          CidrIp: !Ref personalPublicIp 
 #NODE ACCESS RULES:
         - IpProtocol: tcp
           FromPort: 443
