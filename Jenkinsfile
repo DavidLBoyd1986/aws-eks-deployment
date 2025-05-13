@@ -115,26 +115,7 @@ pipeline {
                         sh 'aws eks update-kubeconfig --region $REGION --name EKSPublicCluster'
                         // TODO - Make Cluster Name a parameter
 
-                        // Configure Kubernetes with namespace and deploy the app:
-                        def namespaceExists = sh (
-                            script: "kubectl get namespace web-app > /dev/null 2>&1",
-                            returnStatus: true
-                        ) == 0
-                        if (!namespaceExists) {
-                            sh 'kubectl create namespace web-app'
-                        } else {
-                            echo "Kubernetes namespace already exists. Skipping this step...."
-                        }
-                        sh 'kubectl apply -f ./kubernetes/web-app-deployment.yml'
-
-                        // Run some test commands
-                        sh 'kubectl get nodes'
-                        sh 'aws eks describe-nodegroup --cluster-name EKSPublicCluster --nodegroup-name EKSPublicClusterNodeGroup --region $REGION'
-                        sh 'kubectl get all -n web-app'
-                        sh 'kubectl get pods -n web-app'
-
-                        // Configure a Service/Ingress to allow connections to the application
-
+                        // Configure the AWS Load Balancer Controller
 
                         // Detect if the AWSLoadBalancerControllerIAMPolicy exists
                         def awsLoadBalancerControllerPolicyExists = sh (
@@ -172,18 +153,36 @@ pipeline {
                                     --approve
                             """
                         }
+
+                        // Get the OIDC_ID of the OIDC Provider
+                        def OIDC_ID = sh (
+                            script: "aws eks describe-cluster --name EKSPublicCluster -- region $REGION \
+                                     --query 'cluster.identity.oidc.issuer' --output text | cut -d '/' -f 5"
+                            returnStdout: true
+                        )
+                        echo "OIDC_ID = ${OIDC_ID}"
+                        // Create the ServiceAccount
+                        // - A Role is created, the previous policy is attached, granting the service account AWS permissions
                         if (!awsLoadBalancerControllerExists) {
                             sh """
                                 eksctl create iamserviceaccount \
                                     --cluster=EKSPublicCluster \
                                     --namespace=kube-system \
                                     --name=aws-load-balancer-controller \
+                                    --role-name=AWSLoadBalancerControllerRole
                                     --attach-policy-arn=arn:aws:iam::${AWSAccountId}:policy/AWSLoadBalancerControllerIAMPolicy \
                                     --override-existing-serviceaccounts \
                                     --region $REGION \
                                     --approve
                             """
                         }
+
+                        // Test the Role was created
+                        sh "aws iam get-role --role-name AWSLoadBalancerControllerRole"
+
+                        // Test the service accout was create
+                        sh "kubectl get serviceaccount aws-load-balancer-controller \
+                            --namespace kube-system --output yaml"
 
                         def awsLoadBalancerControllerDeployed = sh (
                             script: "kubectl get deployment -n kube-system aws-load-balancer-controller -o jsonpath='{.status.availableReplicas}'",
@@ -228,15 +227,41 @@ pipeline {
                         }
 
                         // Test if the AWS Load Balancer Controller is (finally) installed
-                        sh 'kubectl get deployment -n web-app aws-load-balancer-controller'
+                        sh "kubectl get all -n kube-system --selector app.kubernetes.io/name=aws-load-balancer-controller"
+
+                        // Configure Kubernetes with namespace and deploy the app:
+                        def namespaceExists = sh (
+                            script: "kubectl get namespace web-app > /dev/null 2>&1",
+                            returnStatus: true
+                        ) == 0
+                        if (!namespaceExists) {
+                            sh 'kubectl create namespace web-app'
+                        } else {
+                            echo "Kubernetes namespace already exists. Skipping this step...."
+                        }
+                        sh 'kubectl apply -f ./kubernetes/web-app-deployment.yml'
+
+                        // Run some test commands
+                        sh 'kubectl get all -n web-app'
+                        sh 'kubectl get pods -n web-app'
+
+                        // Create the Kubernetes Service for the web-app-nlb
+                        sh 'kubectl apply -f ./kubernetes/web-app-nlb.yml'
+                        sh 'kubectl -n web-app describe service web-app-nlb'
+
+                        // Tests and outputs
+                        sh 'kubectl get all -n web-app'
+                        echo "web-app-nlb loadbalancer public address:"
+                        sh "kubectl get service web-app-nlb --namespace web-app \
+                            --output jsonpath='{.status.loadBalancer.ingress[0].hostname}'"
 
                         // Create the Kubernetes Service for the web-app
-                        sh 'kubectl apply -f ./kubernetes/web-app-service.yml'
-                        sh 'kubectl -n web-app describe service web-app-service'
+                        //sh 'kubectl apply -f ./kubernetes/web-app-service.yml'
+                        //sh 'kubectl -n web-app describe service web-app-service'
 
                         // Create the Kubernetes Ingress for the web-app
-                        sh 'kubectl apply -f ./kubernetes/web-app-ingress.yml'
-                        sh 'kubectl -n web-app describe ingress web-app-ingress'
+                        //sh 'kubectl apply -f ./kubernetes/web-app-ingress.yml'
+                        //sh 'kubectl -n web-app describe ingress web-app-ingress'
 
                         // TODO - Add some tests to verify the external connections are working.
                         }
