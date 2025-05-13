@@ -16,7 +16,7 @@ Parameters:
 
   PublicSubnet02Block:
     Type: String
-    Default: 192.168.1.0/26
+    Default: 192.168.1.64/26
     Description: CidrBlock for public subnet 02 within the VPC
 
   PrivateSubnet01Block:
