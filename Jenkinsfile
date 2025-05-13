@@ -32,9 +32,10 @@ pipeline {
 
                         // Replace the variables in the parameters.json file with the actual values:
                         sh """
-                            sed -i 's|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g' parameters.json
-                            sed -i 's|\\\$BASTION_USERNAME|${BASTION_USERNAME}|g' parameters.json
-                            sed -i 's|\\\$BASTION_PASSWORD|${BASTION_PASSWORD}|g' parameters.json
+                            sed -i 's|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g' ./parameters/eks_infrastructure_parameters.json
+                            sed -i 's|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g' ./parameters/bh_infrastructure_parameters.json
+                            sed -i 's|\\\$BASTION_USERNAME|${BASTION_USERNAME}|g' ./parameters/bh_infrastructure_parameters.json
+                            sed -i 's|\\\$BASTION_PASSWORD|${BASTION_PASSWORD}|g' ./parameters/bh_infrastructure_parameters.json
                         """
 
                         // Replace the variables ($CLUSTER_NAME) in other files with the actual values:
@@ -95,7 +96,7 @@ pipeline {
                             sh 'aws cloudformation create-stack \
                                 --stack-name eks-infrastructure-stack \
                                 --template-body file://./IaC/eks_infrastructure_deployment.yml \
-                                --parameters file://./parameters.json \
+                                --parameters file://./parameters/eks_infrastructure_parameters.json \
                                 --capabilities CAPABILITY_NAMED_IAM \
                                 --region $REGION'
                         } else {
@@ -112,7 +113,7 @@ pipeline {
                             sh 'aws cloudformation create-stack \
                                 --stack-name bh-infrastructure-stack \
                                 --template-body file://./IaC/bastion_host_infrastructure_deployment.yml \
-                                --parameters file://./parameters.json \
+                                --parameters file://./parameters/bh_infrastructure_parameters.json \
                                 --capabilities CAPABILITY_NAMED_IAM \
                                 --region $REGION'
                         } else {

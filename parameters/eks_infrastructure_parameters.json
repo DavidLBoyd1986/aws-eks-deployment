@@ -1,0 +1,6 @@
+[
+    {
+      "ParameterKey": "personalPublicIp",
+      "ParameterValue": "$PUBLIC_IP_RANGE"
+    }
+  ]
