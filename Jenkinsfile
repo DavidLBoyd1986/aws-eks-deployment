@@ -130,7 +130,7 @@ pipeline {
                         sh "aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME"
 
                         // Get the ARN of the BastionHostRole so it can be given access to the EKS Cluster
-                        def output = sh(
+                        def bhRoleArn = sh(
                             script: """
                                     aws cloudformation describe-stacks \
                                     --stack-name bh-iam-stack \
@@ -140,8 +140,8 @@ pipeline {
                             """,
                             returnStdout: true
                         ).trim()
-                        echo "BastionHostRoleArn: ${output}"
-                        BASTION_HOST_ROLE_ARN = output
+                        echo "BastionHostRoleArn: ${bhRoleArn}"
+                        def BASTION_HOST_ROLE_ARN = "${bhRoleArn}"
 
                         // Add Bastion Host Role to aws-auth so it can access the Cluster:
                         sh """
@@ -255,16 +255,16 @@ pipeline {
                         // TODO - Having issues with calls, this only worked if the deployment was done, added sleep before this to help.
                         timeout(time: 5, unit: 'MINUTES') {
                             waitUntil {
-                                def output = sh (
+                                def albControllerOutput = sh (
                                     script: "kubectl get deployment -n kube-system aws-load-balancer-controller -o jsonpath='{.status.availableReplicas}' || echo 0",
                                     returnStdout: true
                                 ).trim()
 
                                 // if output is a #, set it, if not set it to 0.
                                 // def availableReplicas = output.isInteger() ? output.toInteger : 0
-                                echo "Available Replicas: ${output}"
+                                echo "Available Replicas: ${albControllerOutput}"
 
-                                if (output == 0) {
+                                if (albControllerOutput == 0) {
                                     echo "Waiting for loadbalance to be deployed..."
                                     sleep 10 // wait 10 seconds before next check
                                     return false
