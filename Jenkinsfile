@@ -169,7 +169,7 @@ pipeline {
                                     --cluster=EKSPublicCluster \
                                     --namespace=kube-system \
                                     --name=aws-load-balancer-controller \
-                                    --role-name=AWSLoadBalancerControllerRole
+                                    --role-name=AWSLoadBalancerControllerRole \
                                     --attach-policy-arn=arn:aws:iam::${AWSAccountId}:policy/AWSLoadBalancerControllerIAMPolicy \
                                     --override-existing-serviceaccounts \
                                     --region $REGION \
