@@ -156,7 +156,7 @@ pipeline {
 
                         // Get the OIDC_ID of the OIDC Provider
                         def OIDC_ID = sh (
-                            script: "aws eks describe-cluster --name EKSPublicCluster -- region $REGION \
+                            script: "aws eks describe-cluster --name EKSPublicCluster --region $REGION \
                                      --query 'cluster.identity.oidc.issuer' --output text | cut -d '/' -f 5",
                             returnStdout: true
                         ).trim()
