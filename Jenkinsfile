@@ -157,9 +157,9 @@ pipeline {
                         // Get the OIDC_ID of the OIDC Provider
                         def OIDC_ID = sh (
                             script: "aws eks describe-cluster --name EKSPublicCluster -- region $REGION \
-                                     --query 'cluster.identity.oidc.issuer' --output text | cut -d '/' -f 5"
+                                     --query 'cluster.identity.oidc.issuer' --output text | cut -d '/' -f 5",
                             returnStdout: true
-                        )
+                        ).trim()
                         echo "OIDC_ID = ${OIDC_ID}"
                         // Create the ServiceAccount
                         // - A Role is created, the previous policy is attached, granting the service account AWS permissions
