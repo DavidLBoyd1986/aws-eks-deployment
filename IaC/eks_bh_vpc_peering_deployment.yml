@@ -21,10 +21,17 @@ Resources:
         - Key: CanDelete
           Value: false
 
-  RouteToEKSVPC:
+  RouteToEKSPublicSubnet01:
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !ImportValue EKSPublicCluster-VpcPublicRouteTable
+      RouteTableId: !ImportValue EKSPublicCluster-VpcPublicRouteTableOne
+      DestinationCidrBlock: !ImportValue BHVpcCidrBlock
+      VpcPeeringConnectionId: !Ref EKSVPCPeeringConnection
+
+  RouteToEKSPublicSubnet02:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !ImportValue EKSPublicCluster-VpcPublicRouteTableTwo
       DestinationCidrBlock: !ImportValue BHVpcCidrBlock
       VpcPeeringConnectionId: !Ref EKSVPCPeeringConnection
 
