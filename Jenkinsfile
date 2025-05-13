@@ -25,16 +25,6 @@ pipeline {
                                      usernamePassword(credentialsId: 'a797bda4-6f58-4006-8434-106015bbde1a', passwordVariable: 'BASTION_PASSWORD', usernameVariable: 'BASTION_USERNAME'),
                                      string(credentialsId: '2ef53f51-8a81-400a-be7f-538cdddad37b', variable: 'PUBLIC_IP_RANGE')]) {
 
-                        // All These Worked. I'm not sure why the PUBLIC_IP one is not working
-                        def TEST_VAR = "${REGION}/32"
-                        echo "$TEST_VAR"
-
-                        def TEST_USER = "${BASTION_USERNAME}_TEST"
-                        echo "$TEST_USER"
-
-                        def TEST_ADD = "$BASTION_USERNAME" + "_TEST"
-                        echo "$TEST_ADD"
-
                         // Replace the variables in the paramters.json file with the actual values:
                         sh """
                             sed -i 's|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g' parameters.json
@@ -58,6 +48,22 @@ pipeline {
                             --stack-name eks-vpc-stack \
                             --template-file ./IaC/eks_vpc_deployment.yml \
                             --region $REGION'
+
+
+                        // TODO - Delete this if it works only with tagging subnets!!!!!
+                        // Require subnet names to use as kubernetes annotations for load balancers
+                        //def eksVpcOutputJson = sh(
+                        //    script: "aws cloudformation describe-stacks --stack-name eks-vpc-stack --region $REGION --query 'Stacks[0].Outputs' --output json",
+                        //    returnStdout: true
+                        //).trim()
+
+                        //def eksVpcOutputs = readJSON text: eksVpcOutputJson
+                        //def eksPublicSubnet = eksVpcOutputs.find { it.OutputKey == 'EKSPublicCluster-PublicSubnet' }?.OutputValue
+                        //def eksPrivateSubnet1 = eksVpcOutputs.find { it.OutputKey == 'EKSPublicCluster-PrivateSubnetOne' }?.OutputValue
+                        //def eksPrivateSubnet2 = eksVpcOutputs.find { it.OutputKey == 'EKSPublicCluster-PrivateSubnetTwo' }?.OutputValue
+                        //echo "eksPublicSubnet = ${eksPublicSubnet}"
+                        //echo "eksPrivateSubnet1 = ${eksPrivateSubnet1}"
+                        //echo "eksPrivateSubnet2 = ${eksPrivateSubnet2}"
 
                         // Deploys the BH and EKS IAM Stacks
                         echo "Deploy the BH IAM stack"
@@ -203,9 +209,11 @@ pipeline {
                             echo "aws-load-balancer-deployment already exists, running upgrade..."
                             // Might add an 'helm update' command here, but right now don't see a reason to.
                         }
+                        echo 'Sleeping for 20 seconds...'
+                        sleep time: 20, unit: 'SECONDS'
 
                         // Need to wait for these pods to be deployed and running
-                        // TODO - Should add api calls and logic check until they are ready.
+                        // TODO - Having issues with calls, this only worked if the deployment was done, added sleep before this to help.
                         timeout(time: 5, unit: 'MINUTES') {
                             waitUntil {
                                 def output = sh (
@@ -244,6 +252,15 @@ pipeline {
                         // Run some test commands
                         sh 'kubectl get all -n web-app'
                         sh 'kubectl get pods -n web-app'
+
+                        // TODO - Delete this if it works only with tagging subnets!!!!!
+                        // Add the subnets to the service files as Annotations
+                        //sh """
+                        //sed -i 's|{{EKS_PUBLIC_SUBNET}}|${eksPublicSubnet}|g' ./kubernetes/web-app-nlb.yml
+                        //sed -i 's|{{EKS_PRIVATE_SUBNET_1}}|${eksPrivateSubnet1}|g' ./kubernetes/web-app-nlb.yml
+                        //sed -i 's|{{EKS_PRIVATE_SUBNET_2}}|${eksPrivateSubnet1}|g' ./kubernetes/web-app-nlb.yml
+                        //"""
+                        //sh 'cat ./kubernetes/web-app-nlb.yml'
 
                         // Create the Kubernetes Service for the web-app-nlb
                         sh 'kubectl apply -f ./kubernetes/web-app-nlb.yml'

@@ -7,6 +7,7 @@ metadata:
     service.beta.kubernetes.io/aws-load-balancer-type: external
     service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
     service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    service.beta.kubernetes.io/aws-load-balancer-subnets: {{PRIVATE_SUBNET_1}},{{$PRIVATE_SUBNET_2}}
 spec:
   ports:
     - port: 8080

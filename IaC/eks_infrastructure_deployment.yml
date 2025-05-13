@@ -40,7 +40,8 @@ Resources:
         EndpointPrivateAccess: true
         EndpointPublicAccess: true 
         SubnetIds:
-          - !ImportValue EKSPublicCluster-PublicSubnet
+          - !ImportValue EKSPublicCluster-PublicSubnetOne
+          - !ImportValue EKSPublicCluster-PublicSubnetTwo
           - !ImportValue EKSPublicCluster-PrivateSubnetOne
           - !ImportValue EKSPublicCluster-PrivateSubnetTwo
         SecurityGroupIds:
@@ -70,9 +71,10 @@ Resources:
         MaxSize:  !Ref MaxSize
         MinSize:  !Ref MinSize
       Subnets: 
-          -  !ImportValue EKSPublicCluster-PublicSubnet
-          -  !ImportValue EKSPublicCluster-PrivateSubnetOne
-          -  !ImportValue EKSPublicCluster-PrivateSubnetTwo
+          - !ImportValue EKSPublicCluster-PublicSubnetOne
+          - !ImportValue EKSPublicCluster-PublicSubnetTwo
+          - !ImportValue EKSPublicCluster-PrivateSubnetOne
+          - !ImportValue EKSPublicCluster-PrivateSubnetTwo
       LaunchTemplate:
         Id: !Ref EKSPublicClusterLaunchTemplate
   

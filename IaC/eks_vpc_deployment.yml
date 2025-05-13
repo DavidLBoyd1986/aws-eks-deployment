@@ -9,10 +9,15 @@ Parameters:
     Default: 192.168.1.0/24
     Description: The CIDR range for the VPC. This should be a valid private (RFC 1918) CIDR range.
 
-  PublicSubnetBlock:
+  PublicSubnet01Block:
     Type: String
-    Default: 192.168.1.0/25
+    Default: 192.168.1.0/26
     Description: CidrBlock for public subnet 01 within the VPC
+
+  PublicSubnet02Block:
+    Type: String
+    Default: 192.168.1.0/26
+    Description: CidrBlock for public subnet 02 within the VPC
 
   PrivateSubnet01Block:
     Type: String
@@ -32,7 +37,8 @@ Metadata:
           default: "Worker Network Configuration"
         Parameters:
           - VpcBlock
-          - PublicSubnetBlock
+          - PublicSubnet01Block
+          - PublicSubnet02Block
           - PrivateSubnet01Block
           - PrivateSubnet02Block
 
@@ -56,15 +62,25 @@ Resources:
       InternetGatewayId: !Ref InternetGateway
       VpcId: !Ref VPC
 
-  PublicRouteTable:
+  PublicRouteTable01:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: Public Subnets
+        Value: Public Subnet AZ1
       - Key: Network
-        Value: Public
+        Value: Public01
+
+  PublicRouteTable02:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Public Subnet AZ2
+      - Key: Network
+        Value: Public02
 
   PrivateRouteTable01:
     Type: AWS::EC2::RouteTable
@@ -86,11 +102,19 @@ Resources:
       - Key: Network
         Value: Private02
 
-  PublicRoute:
+  PublicRoute01:
     DependsOn: VPCGatewayAttachment
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !Ref PublicRouteTable
+      RouteTableId: !Ref PublicRouteTable01
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicRoute02:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable02
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
 
@@ -101,7 +125,7 @@ Resources:
     Properties:
       RouteTableId: !Ref PrivateRouteTable01
       DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGateway
+      NatGatewayId: !Ref NatGateway01
 
   PrivateRoute02:
     DependsOn:
@@ -110,18 +134,29 @@ Resources:
     Properties:
       RouteTableId: !Ref PrivateRouteTable02
       DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGateway
+      NatGatewayId: !Ref NatGateway02
 
-  NatGateway:
+  NatGateway01:
     DependsOn:
       - VPCGatewayAttachment
     Type: AWS::EC2::NatGateway
     Properties:
       AllocationId: !GetAtt 'NatGatewayEIP1.AllocationId'
-      SubnetId: !Ref PublicSubnet
+      SubnetId: !Ref PublicSubnet01
       Tags:
       - Key: Name
         Value: !Sub '${AWS::StackName}-NatGatewayAZ1'
+
+  NatGateway02:
+    DependsOn:
+      - VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NatGatewayEIP2.AllocationId'
+      SubnetId: !Ref PublicSubnet02
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-NatGatewayAZ2'
 
   NatGatewayEIP1:
     DependsOn:
@@ -130,7 +165,14 @@ Resources:
     Properties:
       Domain: vpc
 
-  PublicSubnet:
+  NatGatewayEIP2:
+    DependsOn:
+    - VPCGatewayAttachment
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+
+  PublicSubnet01:
     Type: AWS::EC2::Subnet
     Properties:
       MapPublicIpOnLaunch: true
@@ -140,12 +182,31 @@ Resources:
         - Fn::GetAZs:
             Ref: AWS::Region
       CidrBlock:
-        Ref: PublicSubnetBlock
+        Ref: PublicSubnet01Block
       VpcId:
         Ref: VPC
       Tags:
       - Key: Name
-        Value: !Sub "${AWS::StackName}-PublicSubnet"
+        Value: !Sub "${AWS::StackName}-PublicSubnet01"
+      - Key: kubernetes.io/role/elb
+        Value: 1
+
+  PublicSubnet02:
+    Type: AWS::EC2::Subnet
+    Properties:
+      MapPublicIpOnLaunch: true
+      AvailabilityZone:
+        Fn::Select:
+        - '1'
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock:
+        Ref: PublicSubnet02Block
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-PublicSubnet02"
       - Key: kubernetes.io/role/elb
         Value: 1
 
@@ -187,11 +248,17 @@ Resources:
       - Key: kubernetes.io/role/internal-elb
         Value: 1
 
-  PublicSubnetRouteTableAssociation:
+  PublicSubnet01RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PublicSubnet
-      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet01
+      RouteTableId: !Ref PublicRouteTable01
+
+  PublicSubnet02RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet02
+      RouteTableId: !Ref PublicRouteTable02
 
   PrivateSubnet01RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -279,22 +346,29 @@ Outputs:
     Description: Subnets IDs in the VPC
     Value: !Join [ ",", [ !Ref PrivateSubnet01, !Ref PrivateSubnet02 ] ]
 
-  PublicSubnet:
-    Description: The subnet ID to use for public web servers
+  PublicSubnet01:
+    Description: The subnet ID for public subnet 01
     Value:
-      Ref: PublicSubnet
+      Ref: PublicSubnet01
     Export:
-      Name: EKSPublicCluster-PublicSubnet
+      Name: EKSPublicCluster-PublicSubnetOne
+
+  PublicSubnet02:
+    Description: The subnet ID for public subnet 02
+    Value:
+      Ref: PublicSubnet02
+    Export:
+      Name: EKSPublicCluster-PublicSubnetTwo
 
   PrivateSubnet01:
-    Description: The subnet ID to use for private web servers
+    Description: The subnet ID for private subnet 01
     Value:
       Ref: PrivateSubnet01
     Export:
       Name: EKSPublicCluster-PrivateSubnetOne
 
   PrivateSubnet02:
-    Description: The subnet ID to use for private web servers
+    Description: The subnet ID for private subnet 02
     Value:
       Ref: PrivateSubnet02
     Export:
@@ -324,8 +398,14 @@ Outputs:
     Export:
       Name: EKSPublicCluster-VpcCidrBlock
 
-  PublicRouteTable:
-    Description: The Public Route Table for this VPC
-    Value: !Ref PublicRouteTable
+  PublicRouteTable01:
+    Description: The Public Route Table for public subnet 1 in this VPC
+    Value: !Ref PublicRouteTable01
     Export:
-      Name: EKSPublicCluster-VpcPublicRouteTable
+      Name: EKSPublicCluster-VpcPublicRouteTableOne
+
+  PublicRouteTable02:
+    Description: The Public Route Table for public subnet 2 in this VPC
+    Value: !Ref PublicRouteTable02
+    Export:
+      Name: EKSPublicCluster-VpcPublicRouteTableTwo
