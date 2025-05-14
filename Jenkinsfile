@@ -32,7 +32,6 @@ pipeline {
                         // CONFIGURE ALL THE VARIABLES TO BE USED
                         //---------------------------------------
 
-                        echo "KUBE_VERSION = ${KUBE_VERSION}"
                         def HELM_VERSION = sh (
                             script: """
                                 curl -s https://api.github.com/repos/helm/helm/releases/latest | grep tag_name | cut -d '"' -f 4
@@ -345,7 +344,7 @@ pipeline {
                             timeout(time: 5, unit: 'MINUTES') {
                                 waitUntil {
                                     def hostname = sh(
-                                        script: "kubectl get svc ${KUBE_NAMESPACE}-nlb -n ${KUBE_NAMESPACE} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'",
+                                        script: "kubectl get svc ${KUBE_NAMESPACE}-nlb-service -n ${KUBE_NAMESPACE} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'",
                                         returnStdout: true
                                     ).trim()
                                     return hostname != ''
@@ -353,7 +352,7 @@ pipeline {
                             }
 
                             def nlb_dns = sh(
-                                script: "kubectl get svc ${SERVICE_NAME} -n ${SERVICE_NAMESPACE} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'",
+                                script: "kubectl get svc ${KUBE_NAMESPACE}-nlb-service -n ${KUBE_NAMESPACE} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'",
                                 returnStdout: true
                             ).trim()
                             // Output information about the service
@@ -388,7 +387,7 @@ pipeline {
                             }
 
                             def alb_dns = sh(
-                                script: "kubectl get svc ${SERVICE_NAME} -n ${SERVICE_NAMESPACE} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'",
+                                script: "kubectl get svc ${KUBE_NAMESPACE}-ingress -n ${KUBE_NAMESPACE} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'",
                                 returnStdout: true
                             ).trim()
                             // Output information about the service
