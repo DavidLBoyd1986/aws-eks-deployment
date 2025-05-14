@@ -327,9 +327,9 @@ pipeline {
                             // Creates an NLB, and Kubernetes service for NLB to access Application Pods
                             sh "kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-nlb.yml"
 
-                            // Sleep to wait for deployment
-                            echo "Sleeping for 10 seconds..."
-                            sleep time: 10, unit: 'SECONDS'
+                            // Sleep to wait for deployment - Pipeline will fail if you don't wait
+                            echo "Sleeping for 30 seconds..."
+                            sleep time: 30, unit: 'SECONDS'
                             // Loop to wait for deployment
                             timeout(time: 5, unit: 'MINUTES') {
                                 waitUntil {
@@ -364,9 +364,9 @@ pipeline {
                             // Create the Kubernetes Ingress that creates the ALB and allows external access through it.
                             sh "kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-ingress.yml"
 
-                            // Sleep to wait for deployment
-                            echo "Sleeping for 10 seconds..."
-                            sleep time: 10, unit: 'SECONDS'
+                            // Sleep to wait for deployment - Pipeline will fail if you don't wait
+                            echo "Sleeping for 30 seconds..."
+                            sleep time: 30, unit: 'SECONDS'
                             // Loop to wait for deployment
                             timeout(time: 5, unit: 'MINUTES') {
                                 waitUntil {
