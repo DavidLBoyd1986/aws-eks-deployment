@@ -284,7 +284,7 @@ pipeline {
 
                                 echo "Available Replicas: ${albControllerOutput}"
                                 // if output is a #, set it, if not set it to 0.
-                                def "availableReplicas = (albControllerOutput.isInteger()) ? albControllerOutput.toInteger() : 0"
+                                def availableReplicas = (albControllerOutput.isInteger()) ? albControllerOutput.toInteger() : 0
 
                                 if (albControllerOutput == 0) {
                                     echo "Waiting for loadbalance to be deployed..."
