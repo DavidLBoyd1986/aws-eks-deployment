@@ -32,6 +32,7 @@ pipeline {
                         // CONFIGURE ALL THE VARIABLES TO BE USED
                         //---------------------------------------
 
+                        // TODO - Clean up """, they were required because of using cut -d '"'
                         def HELM_VERSION = sh (
                             script: """
                                 curl -s https://api.github.com/repos/helm/helm/releases/latest | grep tag_name | cut -d '"' -f 4
@@ -61,8 +62,8 @@ pipeline {
                         // Get AMI ID for the aws-eks-optimized AMIs for the region and specific kubernetes version
                         def AMI_ID = sh (
                             script: "aws ssm get-parameter \
-                            --name /aws/service/eks/optimized-ami/${KUBE_VERSION}/amazon-linux-2/recommended/image_id \
-                            --region ${REGION} --query 'Parameter.Value' --output text",
+                                     --name /aws/service/eks/optimized-ami/${KUBE_VERSION}/amazon-linux-2/recommended/image_id \
+                                     --region ${REGION} --query 'Parameter.Value' --output text",
                             returnStdout: true
                         ).trim()
 
@@ -82,24 +83,25 @@ pipeline {
 
                         // Deploys the Bastion Host Networking Stack
                         echo "Deploy the BH Networking stack"
-                        sh 'aws cloudformation deploy \
+                        sh "aws cloudformation deploy \
                             --stack-name bh-vpc-stack \
                             --template-file ./IaC/bastion_host_vpc_deployment.yml \
-                            --region $REGION'
+                            --region $REGION"
 
                         // Deploys the EKS Networking Stack
                         def eksStackExists = sh (
-                            script: "aws cloudformation describe-stacks --region $REGION --stack-name eks-vpc-stack > /dev/null 2>&1",
+                            script: "aws cloudformation describe-stacks --region $REGION \
+                                     --stack-name eks-vpc-stack > /dev/null 2>&1",
                             returnStatus: true
                         ) == 0
                         if (!eksStackExists) {
                             echo "Deploy the EKS Networking Stack"
-                            sh 'aws cloudformation create-stack \
+                            sh "aws cloudformation create-stack \
                                 --stack-name eks-vpc-stack \
                                 --template-body file://./IaC/eks_vpc_deployment.yml \
                                 --parameters file://./parameters/eks_vpc_parameters.json \
                                 --capabilities CAPABILITY_NAMED_IAM \
-                                --region $REGION'
+                                --region $REGION"
                         } else {
                             echo "EKS Networking Stack already exists, skipping deployment..."
                         }
@@ -163,27 +165,22 @@ pipeline {
 
                         // Get the ARN of the BastionHostRole so it can be given access to the EKS Cluster
                         def bhRoleArn = sh(
-                            script: """
-                                    aws cloudformation describe-stacks \
-                                    --stack-name bh-iam-stack \
-                                    --region $REGION \
-                                    --query "Stacks[0].Outputs[?OutputKey=='BastionHostRoleArn'].OutputValue" \
-                                    --output text
-                            """,
+                            script: 'aws cloudformation describe-stacks ' +
+                                    '--stack-name bh-iam-stack --region $REGION ' +
+                                    '--query "Stacks[0].Outputs[?OutputKey==\'BastionHostRoleArn\'].OutputValue" ' +
+                                    '--output text',
                             returnStdout: true
                         ).trim()
-                        echo "BastionHostRoleArn: ${bhRoleArn}"
+
+                        // TODO - Test if this can be deleted. Had issue with brackets, that is why this exists
                         def BASTION_HOST_ROLE_ARN = "${bhRoleArn}"
 
                         // Add Bastion Host Role to aws-auth so it can access the Cluster:
-                        sh """
-                            eksctl create iamidentitymapping \
-                            --cluster $CLUSTER_NAME \
-                            --region $REGION \
+                        sh "eksctl create iamidentitymapping \
+                            --cluster $CLUSTER_NAME --region $REGION \
                             --arn $BASTION_HOST_ROLE_ARN \
                             --username system:node:{{EC2PrivateDNSName}} \
-                            --group system:masters
-                        """
+                            --group system:masters"
 
                         // ------------------------------------------
                         // CONFIGURE THE AWS LOAD BALANCER CONTROLLER
@@ -191,14 +188,18 @@ pipeline {
 
                         // Detect if the AWSLoadBalancerControllerIAMPolicy exists
                         def awsLoadBalancerControllerPolicyExists = sh (
-                            script: "aws iam list-policies --scope Local --query 'Policies[].PolicyName' --output text | grep 'AWSLoadBalancerControllerIAMPolicy' > /dev/null 2>&1",
+                            script: "aws iam list-policies --scope Local \
+                                     --query 'Policies[].PolicyName' \
+                                     --output text | grep 'AWSLoadBalancerControllerIAMPolicy' > /dev/null 2>&1",
                             returnStatus: true
                         ) == 0
 
                         // If AWSLoadBalancerControllerIAMPolicy does NOT exist, create it
                         if (!awsLoadBalancerControllerPolicyExists) {
-                            sh 'curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.12.0/docs/install/iam_policy.json'
-                            sh 'aws iam create-policy --policy-name AWSLoadBalancerControllerIAMPolicy --policy-document file://iam_policy.json'
+                            sh "curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.12.0/docs/install/iam_policy.json"
+                            sh "aws iam create-policy \
+                                --policy-name AWSLoadBalancerControllerIAMPolicy \
+                                --policy-document file://iam_policy.json"
                         } else {
                             echo "The AWSLoadBalancerControllerIAMPolicy already exists. Skipping this step....."
                         }
@@ -213,18 +214,15 @@ pipeline {
                         // TODO: The below seems to work, but shows: "Error from server (notFound): serviceaccounts "aws-load-balancer-controller" not found"
                         // Detect if the "aws-load-balancer-controller" (Kubernetes Service Account) exists
                         def awsLoadBalancerControllerExists = sh (
-                            script: "kubectl get serviceaccount aws-load-balancer-controller -n kube-system > /dev/null 2>&1",
+                            script: "kubectl get serviceaccount aws-load-balancer-controller \
+                                     -n kube-system > /dev/null 2>&1",
                             returnStatus: true
                         ) == 0
 
                         // Must associate an OIDC (OpenID Connect) provider with the cluster
                         if (!awsLoadBalancerControllerExists) {
-                            sh """
-                                eksctl utils associate-iam-oidc-provider \
-                                    --region $REGION \
-                                    --cluster $CLUSTER_NAME \
-                                    --approve
-                            """
+                            sh "eksctl utils associate-iam-oidc-provider \
+                                --region $REGION --cluster $CLUSTER_NAME --approve"
                         }
 
                         // Get the OIDC_ID of the OIDC Provider
@@ -238,17 +236,11 @@ pipeline {
                         // Create the ServiceAccount
                         // - A Role is created, the previous policy is attached, granting the service account AWS permissions
                         if (!awsLoadBalancerControllerExists) {
-                            sh """
-                                eksctl create iamserviceaccount \
-                                    --cluster=$CLUSTER_NAME \
-                                    --namespace=kube-system \
-                                    --name=aws-load-balancer-controller \
-                                    --role-name=AWSLoadBalancerControllerRole \
-                                    --attach-policy-arn=arn:aws:iam::${AWSAccountId}:policy/AWSLoadBalancerControllerIAMPolicy \
-                                    --override-existing-serviceaccounts \
-                                    --region $REGION \
-                                    --approve
-                            """
+                            sh "eksctl create iamserviceaccount --cluster=$CLUSTER_NAME \
+                                --namespace=kube-system --name=aws-load-balancer-controller \
+                                --role-name=AWSLoadBalancerControllerRole \
+                                --attach-policy-arn=arn:aws:iam::${AWSAccountId}:policy/AWSLoadBalancerControllerIAMPolicy \
+                                --override-existing-serviceaccounts --region $REGION --approve"
                         }
 
                         // Test the Role was created
@@ -267,34 +259,32 @@ pipeline {
                         // Install or Update the deployment if it is already installed
                         if (!awsLoadBalancerControllerDeployed) {
                             // Install the AWS Load Balancer Controller using Helm
-                            sh 'helm repo add eks https://aws.github.io/eks-charts'
-                            sh 'helm repo update eks'
-                            sh """
-                                helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
-                                -n kube-system \
-                                --set clusterName=$CLUSTER_NAME \
+                            sh "helm repo add eks https://aws.github.io/eks-charts"
+                            sh "helm repo update eks"
+                            sh "helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+                                -n kube-system --set clusterName=$CLUSTER_NAME \
                                 --set serviceAccount.create=false \
-                                --set serviceAccount.name=aws-load-balancer-controller
-                            """
+                                --set serviceAccount.name=aws-load-balancer-controller"
                         } else {
                             echo "aws-load-balancer-deployment already exists, running upgrade..."
                             // Might add an 'helm update' command here, but right now don't see a reason to.
                         }
-                        echo 'Sleeping for 20 seconds...'
-                        sleep time: 20, unit: 'SECONDS'
+                        echo "Sleeping for 10 seconds..."
+                        sleep time: 10, unit: 'SECONDS'
 
                         // Need to wait for these pods to be deployed and running
                         // TODO - Having issues with calls, this only worked if the deployment was done, added sleep before this to help.
                         timeout(time: 5, unit: 'MINUTES') {
                             waitUntil {
                                 def albControllerOutput = sh (
-                                    script: "kubectl get deployment -n kube-system aws-load-balancer-controller -o jsonpath='{.status.availableReplicas}' || echo 0",
+                                    script: "kubectl get deployment aws-load-balancer-controller \
+                                            -n kube-system -o jsonpath='{.status.availableReplicas}' 2>/dev/null || echo '0'",
                                     returnStdout: true
                                 ).trim()
 
-                                // if output is a #, set it, if not set it to 0.
-                                // def availableReplicas = output.isInteger() ? output.toInteger : 0
                                 echo "Available Replicas: ${albControllerOutput}"
+                                // if output is a #, set it, if not set it to 0.
+                                def availableReplicas = (albControllerOutput.isInteger()) ? albControllerOutput.toInteger() : 0
 
                                 if (albControllerOutput == 0) {
                                     echo "Waiting for loadbalance to be deployed..."
@@ -318,15 +308,15 @@ pipeline {
                             returnStatus: true
                         ) == 0
                         if (!namespaceExists) {
-                            sh 'kubectl create namespace ${KUBE_NAMESPACE}'
+                            sh "kubectl create namespace ${KUBE_NAMESPACE}"
                         } else {
                             echo "Kubernetes namespace already exists. Skipping this step...."
                         }
-                        sh 'kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-deployment.yml'
+                        sh "kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-deployment.yml"
 
                         // Run some test commands
-                        sh 'kubectl get all -n ${KUBE_NAMESPACE}'
-                        sh 'kubectl get pods -n ${KUBE_NAMESPACE}'
+                        sh "kubectl get all -n ${KUBE_NAMESPACE}"
+                        sh "kubectl get pods -n ${KUBE_NAMESPACE}"
 
                         // --------------------------
                         // DEPLOY THE LOAD BALANCERS:
@@ -335,16 +325,17 @@ pipeline {
                         // Create the Kubernetes resources to create the KUBE_LOAD_BALANCER_TYPE
                         if (KUBE_LOAD_BALANCER_TYPE == "NLB") {
                             // Creates an NLB, and Kubernetes service for NLB to access Application Pods
-                            sh 'kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-nlb.yml'
+                            sh "kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-nlb.yml"
 
-                            // Sleep to wait for deployment
-                            echo 'Sleeping for 20 seconds...'
-                            sleep time: 20, unit: 'SECONDS'
+                            // Sleep to wait for deployment - Pipeline will fail if you don't wait
+                            echo "Sleeping for 30 seconds..."
+                            sleep time: 30, unit: 'SECONDS'
                             // Loop to wait for deployment
                             timeout(time: 5, unit: 'MINUTES') {
                                 waitUntil {
                                     def hostname = sh(
-                                        script: "kubectl get svc ${KUBE_NAMESPACE}-nlb-service -n ${KUBE_NAMESPACE} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'",
+                                        script: "kubectl get svc ${KUBE_NAMESPACE}-nlb-service -n ${KUBE_NAMESPACE} \
+                                                -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'",
                                         returnStdout: true
                                     ).trim()
                                     return hostname != ''
@@ -352,34 +343,36 @@ pipeline {
                             }
 
                             def nlb_dns = sh(
-                                script: "kubectl get svc ${KUBE_NAMESPACE}-nlb-service -n ${KUBE_NAMESPACE} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'",
+                                script: "kubectl get svc ${KUBE_NAMESPACE}-nlb-service -n ${KUBE_NAMESPACE} \
+                                        -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'",
                                 returnStdout: true
                             ).trim()
                             // Output information about the service
-                            sh 'kubectl -n ${KUBE_NAMESPACE} describe service ${KUBE_NAMESPACE}-nlb'
+                            sh "kubectl -n ${KUBE_NAMESPACE} describe service ${KUBE_NAMESPACE}-nlb"
                             echo "Load Balancer DNS: ${nlb_dns}"
 
                             // Optional sleep to ensure DNS is resolvable
-                            sh 'sleep 10'
+                            sh "sleep 10"
 
                             // Test the loadbalancer call
                             // TODO - Change Image from WebGoat to one that used port 80 and returns 200 for '/'
                             sh "curl -v http://${nlb_dns}:8080/WebGoat"
                         } else if (KUBE_LOAD_BALANCER_TYPE == "ALB"){
                             // Create the Kubernetes Service that allows ALB to access Application Pods
-                            sh 'kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-service.yml'
+                            sh "kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-service.yml"
 
                             // Create the Kubernetes Ingress that creates the ALB and allows external access through it.
-                            sh 'kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-ingress.yml'
+                            sh "kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-ingress.yml"
 
-                            // Sleep to wait for deployment
-                            echo 'Sleeping for 20 seconds...'
-                            sleep time: 20, unit: 'SECONDS'
+                            // Sleep to wait for deployment - Pipeline will fail if you don't wait
+                            echo "Sleeping for 30 seconds..."
+                            sleep time: 30, unit: 'SECONDS'
                             // Loop to wait for deployment
                             timeout(time: 5, unit: 'MINUTES') {
                                 waitUntil {
                                     def hostname = sh(
-                                        script: "kubectl get ingress ${KUBE_NAMESPACE}-ingress -n ${KUBE_NAMESPACE} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'",
+                                        script: "kubectl get ingress ${KUBE_NAMESPACE}-ingress -n ${KUBE_NAMESPACE} \
+                                                -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'",
                                         returnStdout: true
                                     ).trim()
                                     return hostname != ''
@@ -391,11 +384,11 @@ pipeline {
                                 returnStdout: true
                             ).trim()
                             // Output information about the service
-                            sh 'kubectl -n ${KUBE_NAMESPACE} describe service ${KUBE_NAMESPACE}-nlb'
+                            sh "kubectl -n ${KUBE_NAMESPACE} describe service ${KUBE_NAMESPACE}-nlb"
                             echo "Load Balancer DNS: ${alb_dns}"
 
                             // Optional sleep to ensure DNS is resolvable
-                            sh 'sleep 10'
+                            sh "sleep 10"
 
                             // Test the loadbalancer call
                             // TODO - Change Image from WebGoat to one that used port 80 and returns 200 for '/'
