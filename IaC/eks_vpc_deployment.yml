@@ -52,7 +52,8 @@ Resources:
   VPC:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock:  !Ref VpcBlock
+      CidrBlock: 192.168.1.0/24
+      #CidrBlock:  !Ref VpcBlock # Testing if using parameter caused 2 VPCs to be created
       EnableDnsSupport: true
       EnableDnsHostnames: true
       Tags:
@@ -319,22 +320,22 @@ Resources:
           FromPort: 443 
           ToPort: 443
           CidrIp: !Ref personalPublicIp
-        - IpProtocol: udp # Test delete
-          FromPort: 0
-          ToPort: 53
-          CidrIp: !Ref personalPublicIp
-        - IpProtocol: tcp # Test delete
-          FromPort: 53
-          ToPort: 53
-          CidrIp: !Ref personalPublicIp
-        - IpProtocol: icmp # Test delete
-          FromPort: -1
-          ToPort: -1
-          CidrIp: !Ref personalPublicIp
-        - IpProtocol: icmpv6 # Test delete
-          FromPort: -1
-          ToPort: -1
-          CidrIp: !Ref personalPublicIp
+        # - IpProtocol: udp # Test delete
+        #   FromPort: 0
+        #   ToPort: 53
+        #   CidrIp: !Ref personalPublicIp
+        # - IpProtocol: tcp # Test delete
+        #   FromPort: 53
+        #   ToPort: 53
+        #   CidrIp: !Ref personalPublicIp
+        # - IpProtocol: icmp # Test delete
+        #   FromPort: -1
+        #   ToPort: -1
+        #   CidrIp: !Ref personalPublicIp
+        # - IpProtocol: icmpv6 # Test delete
+        #   FromPort: -1
+        #   ToPort: -1
+        #   CidrIp: !Ref personalPublicIp
 # NODE ACCESS RULES:
   # These rules allow EKS VPC network traffic to access the Nodes.
   # A lot of these are only included because they are common non-standard http(s) ports:
@@ -409,7 +410,6 @@ Resources:
           FromPort: 9443
           ToPort: 9443
           CidrIp: !ImportValue BHVpcCidrBlock
-# BASTION HOST ACCESS RULES:
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
