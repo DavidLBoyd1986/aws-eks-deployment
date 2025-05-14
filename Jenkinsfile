@@ -35,7 +35,7 @@ pipeline {
                         echo "KUBE_VERSION = ${KUBE_VERSION}"
                         def HELM_VERSION = sh (
                             script: """
-                                curl -s https://api.github.com/repos/helm/helm/releases/latest | grep tag_name | cut -d '"' -f 4)
+                                curl -s https://api.github.com/repos/helm/helm/releases/latest | grep tag_name | cut -d '"' -f 4
                                 """,
                             returnStdout: true
                         ).trim()
