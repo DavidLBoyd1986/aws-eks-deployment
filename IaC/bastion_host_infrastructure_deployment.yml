@@ -107,8 +107,8 @@ Resources:
             aws eks update-kubeconfig --region ${AWS::Region} --name ${clusterName}
 
             # Download and install newest version of helm
-            curl -LO https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz
-            tar -zxvf helm-${HELM_VERSION}-linux-amd64.tar.gz
+            curl -LO https://get.helm.sh/helm-${helmVersion}-linux-amd64.tar.gz
+            tar -zxvf helm-${helmVersion}-linux-amd64.tar.gz
             sudo mv linux-amd64/helm /usr/local/bin/helm
 
             # Download and install newest version of eksctl
