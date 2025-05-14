@@ -13,7 +13,7 @@ Parameters:
     Description: Name of the EKS NodeGroup
   AmiId:
     Type: String
-    Default: ami-053f582f07162d4c6
+    Default: $AMI_ID
     Description: AMI ID used for Nodes
   DesiredCapacity:
     Type: Number

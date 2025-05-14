@@ -1,10 +1,10 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: web-app-ingress
-  namespace: web-app
+  name: ${KUBE_NAMESPACE}-ingress
+  namespace: ${KUBE_NAMESPACE}
   labels:
-    app: web-app-ingress
+    app: ${KUBE_NAMESPACE}-ingress
   annotations:
     kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/scheme: internet-facing
@@ -20,6 +20,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: "web-app-service"
+                name: "${KUBE_NAMESPACE}-service"
                 port:
                   number: 8080

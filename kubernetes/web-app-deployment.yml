@@ -1,23 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: web-app-deployment
-  namespace: web-app
+  name: ${KUBE_NAMESPACE}-deployment
+  namespace: ${KUBE_NAMESPACE}
   labels:
-    app: web-app-webgoat
+    app: ${KUBE_NAMESPACE}-webgoat
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: web-app-webgoat
+      app: ${KUBE_NAMESPACE}-webgoat
   template:
     metadata:
       labels:
-        app: web-app-webgoat
+        app: ${KUBE_NAMESPACE}-webgoat
     spec:
       #serviceAccountName: aws-load-balancer-controller
       containers:
-      - name: web-app
+      - name: ${KUBE_NAMESPACE}
         image: webgoat/webgoat
         ports:
         - name: http

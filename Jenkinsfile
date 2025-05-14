@@ -5,7 +5,9 @@ pipeline {
     environment {
         REGION = "us-east-1"
         CLUSTER_NAME = "EKSPublicCluster"
-        // PUBLIC_IP = credentials('2ef53f51-8a81-400a-be7f-538cdddad37b')
+        KUBE_VERSION = "1.32"
+        KUBE_NAMESPACE = "web-app"
+        KUBE_LOAD_BALANCER_TYPE = "NLB" // Must be NLB or ALB
     }
 
     stages {
@@ -30,17 +32,36 @@ pipeline {
                         // CONFIGURE ALL THE VARIABLES TO BE USED
                         //---------------------------------------
 
+                        echo "KUBE_VERSION = ${KUBE_VERSION}"
                         // Replace the variables in the parameters.json file with the actual values:
                         sh """
                             sed -i 's|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g' ./parameters/eks_vpc_parameters.json
                             sed -i 's|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g' ./parameters/bh_infrastructure_parameters.json
                             sed -i 's|\\\$BASTION_USERNAME|${BASTION_USERNAME}|g' ./parameters/bh_infrastructure_parameters.json
                             sed -i 's|\\\$BASTION_PASSWORD|${BASTION_PASSWORD}|g' ./parameters/bh_infrastructure_parameters.json
+                            sed -i 's|\\\$KUBE_VERSION|${KUBE_VERSION}|g' ./parameters/bh_infrastructure_parameters.json
                         """
+
+                        // Replace ${KUBE_NAMESPACE} in kubernetes files:
+                        sh """
+                            sed -i 's|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g' ./kubernetes/web-app-deployment.yml
+                            sed -i 's|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g' ./kubernetes/web-app-nlb.yml
+                            sed -i 's|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g' ./kubernetes/web-app-service.yml
+                            sed -i 's|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g' ./kubernetes/web-app-ingress.yml
+                        """
+
+                        // Get AMI ID for the aws-eks-optimized AMIs for the region and specific kubernetes version
+                        def AMI_ID = sh (
+                            script: "aws ssm get-parameter \
+                            --name /aws/service/eks/optimized-ami/${KUBE_VERSION}/amazon-linux-2/recommended/image_id \
+                            --region ${REGION} --query 'Parameter.Value' --output text",
+                            returnStdout: true
+                        ).trim()
 
                         // Replace the variables ($CLUSTER_NAME) in other files with the actual values:
                         sh """
                             sed -i 's|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g' ./IaC/eks_infrastructure_deployment.yml
+                            sed -i 's|\\\$AMI_ID|${AMI_ID}|g' ./IaC/eks_infrastructure_deployment.yml
                         """
 
                         // Test the variables were replaced successfully
@@ -77,25 +98,25 @@ pipeline {
 
                         // Deploys the BH and EKS IAM Stacks
                         echo "Deploy the BH IAM stack"
-                        sh 'aws cloudformation deploy \
+                        sh "aws cloudformation deploy \
                             --stack-name bh-iam-stack \
                             --template-file ./IaC/bastion_host_iam_deployment.yml \
                             --capabilities CAPABILITY_IAM \
-                            --region $REGION'
+                            --region $REGION"
 
                         echo "Deploy the EKS IAM stack"
-                        sh 'aws cloudformation deploy \
+                        sh "aws cloudformation deploy \
                             --stack-name eks-iam-stack \
                             --template-file ./IaC/eks_iam_deployment.yml \
                             --capabilities CAPABILITY_NAMED_IAM \
-                            --region $REGION'
+                            --region $REGION"
 
                         // Deploys the VPC Peering Connection Stack
                         echo "Deploy VPC Peering Connection so Bastion Hosts can connect to EKS Cluster"
-                        sh 'aws cloudformation deploy \
+                        sh "aws cloudformation deploy \
                             --stack-name eks-bh-vpc-peering-stack \
                             --template-file ./IaC/eks_bh_vpc_peering_deployment.yml \
-                            --region $REGION'
+                            --region $REGION"
 
                         // Deploys the EKS Infrastructure Stack, if it doesn't already exist 
                         echo "Deploy the EKS Infrastructure Stack"
@@ -112,12 +133,12 @@ pipeline {
                         ) == 0
                         if (!bhStackExists) {
                             echo "Deploy the BH Infrastructure Stack"
-                            sh 'aws cloudformation create-stack \
+                            sh "aws cloudformation create-stack \
                                 --stack-name bh-infrastructure-stack \
                                 --template-body file://./IaC/bastion_host_infrastructure_deployment.yml \
                                 --parameters file://./parameters/bh_infrastructure_parameters.json \
                                 --capabilities CAPABILITY_NAMED_IAM \
-                                --region $REGION'
+                                --region $REGION"
                         } else {
                             echo "BH Infrastructure Stack already exists, skipping deployment..."
                         }
@@ -128,8 +149,8 @@ pipeline {
 
                         // Configure kubectl to connect to eks cluster.
                         echo "Configure kubectl to connect to cluster."
-                        sh 'kubectl version --client'
-                        sh 'aws sts get-caller-identity'
+                        sh "kubectl version --client"
+                        sh "aws sts get-caller-identity"
                         sh "aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME"
 
                         // Get the ARN of the BastionHostRole so it can be given access to the EKS Cluster
@@ -285,56 +306,106 @@ pipeline {
 
                         // Configure Kubernetes with namespace and deploy the app:
                         def namespaceExists = sh (
-                            script: "kubectl get namespace web-app > /dev/null 2>&1",
+                            script: "kubectl get namespace ${KUBE_NAMESPACE} > /dev/null 2>&1",
                             returnStatus: true
                         ) == 0
                         if (!namespaceExists) {
-                            sh 'kubectl create namespace web-app'
+                            sh 'kubectl create namespace ${KUBE_NAMESPACE}'
                         } else {
                             echo "Kubernetes namespace already exists. Skipping this step...."
                         }
-                        sh 'kubectl apply -f ./kubernetes/web-app-deployment.yml'
+                        sh 'kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-deployment.yml'
 
                         // Run some test commands
-                        sh 'kubectl get all -n web-app'
-                        sh 'kubectl get pods -n web-app'
+                        sh 'kubectl get all -n ${KUBE_NAMESPACE}'
+                        sh 'kubectl get pods -n ${KUBE_NAMESPACE}'
 
-                        // Create the Kubernetes Service for the web-app-nlb
-                        sh 'kubectl apply -f ./kubernetes/web-app-nlb.yml'
-                        sh 'kubectl -n web-app describe service web-app-nlb'
+                        // --------------------------
+                        // DEPLOY THE LOAD BALANCERS:
+                        //---------------------------
 
-                        // Tests and outputs
-                        sh 'kubectl get all -n web-app'
-                        echo "web-app-nlb loadbalancer public address:"
+                        // Create the Kubernetes resources to create the KUBE_LOAD_BALANCER_TYPE
+                        if (KUBE_LOAD_BALANCER_TYPE == "NLB") {
+                            // Creates an NLB, and Kubernetes service for NLB to access Application Pods
+                            sh 'kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-nlb.yml'
 
-                        echo 'Sleeping for 20 seconds...'
-                        sleep time: 20, unit: 'SECONDS'
+                            // Sleep to wait for deployment
+                            echo 'Sleeping for 20 seconds...'
+                            sleep time: 20, unit: 'SECONDS'
+                            // Loop to wait for deployment
+                            timeout(time: 5, unit: 'MINUTES') {
+                                waitUntil {
+                                    def hostname = sh(
+                                        script: "kubectl get svc ${KUBE_NAMESPACE}-nlb -n ${KUBE_NAMESPACE} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'",
+                                        returnStdout: true
+                                    ).trim()
+                                    return hostname != ''
+                                }
+                            }
 
-                        // Creates an NLB, and Kubernetes service for NLB to access Application Pods
-                        sh "kubectl get service web-app-nlb --namespace web-app \
-                            --output jsonpath='{.status.loadBalancer.ingress[0].hostname}'"
+                            def nlb_dns = sh(
+                                script: "kubectl get svc ${SERVICE_NAME} -n ${SERVICE_NAMESPACE} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'",
+                                returnStdout: true
+                            ).trim()
+                            // Output information about the service
+                            sh 'kubectl -n ${KUBE_NAMESPACE} describe service ${KUBE_NAMESPACE}-nlb'
+                            echo "Load Balancer DNS: ${nlb_dns}"
 
-                        // Below is for creating an ALB instead of an NLB.
-                            // To use an ALB:
-                            //   Comment out above 'sh' command.
-                            //   Uncomment below two commands.
+                            // Optional sleep to ensure DNS is resolvable
+                            sh 'sleep 10'
 
-                        // Create the Kubernetes Service for the web-app, allows ALB to access Application Pods
-                        //sh 'kubectl apply -f ./kubernetes/web-app-service.yml'
+                            // Test the loadbalancer call
+                            // TODO - Change Image from WebGoat to one that used port 80 and returns 200 for '/'
+                            sh "curl -v http://${nlb_dns}:8080/WebGoat"
+                        } else if (KUBE_LOAD_BALANCER_TYPE == "ALB"){
+                            // Create the Kubernetes Service that allows ALB to access Application Pods
+                            sh 'kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-service.yml'
 
-                        // Create the Kubernetes Ingress for the web-app, creates the ALB and allows external access through it.
-                        //sh 'kubectl apply -f ./kubernetes/web-app-ingress.yml'
+                            // Create the Kubernetes Ingress that creates the ALB and allows external access through it.
+                            sh 'kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-ingress.yml'
 
-                        // Verify created Load Balancer resources:
-                        sh 'kubectl describe service web-app-nlb -n web-app'
-                        //sh 'kubectl describe service web-app-service -n web-app'
-                        //sh 'kubectl describe ingress web-app-ingress -n web-app'
-                        
-                        // TODO - Add some tests to verify the external connections are working.
+                            // Sleep to wait for deployment
+                            echo 'Sleeping for 20 seconds...'
+                            sleep time: 20, unit: 'SECONDS'
+                            // Loop to wait for deployment
+                            timeout(time: 5, unit: 'MINUTES') {
+                                waitUntil {
+                                    def hostname = sh(
+                                        script: "kubectl get ingress ${KUBE_NAMESPACE}-ingress -n ${KUBE_NAMESPACE} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'",
+                                        returnStdout: true
+                                    ).trim()
+                                    return hostname != ''
+                                }
+                            }
+
+                            def alb_dns = sh(
+                                script: "kubectl get svc ${SERVICE_NAME} -n ${SERVICE_NAMESPACE} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'",
+                                returnStdout: true
+                            ).trim()
+                            // Output information about the service
+                            sh 'kubectl -n ${KUBE_NAMESPACE} describe service ${KUBE_NAMESPACE}-nlb'
+                            echo "Load Balancer DNS: ${alb_dns}"
+
+                            // Optional sleep to ensure DNS is resolvable
+                            sh 'sleep 10'
+
+                            // Test the loadbalancer call
+                            // TODO - Change Image from WebGoat to one that used port 80 and returns 200 for '/'
+                            sh "curl -v http://${alb_dns}:8080/WebGoat"
+                        } else {
+                            echo "ERROR - Invalid KUBE_LOAD_BALANCER_TYPE selected. \
+                                    It must be: ('NLB' || 'ALB')"
                         }
+
+                        // ---------------
+                        // END OF PIPELINE
+                        //----------------
+
+                        echo "Pipeline finished - Application deployed successfully"
                     }
                 }
             }
+        }
     }
 
     post {
