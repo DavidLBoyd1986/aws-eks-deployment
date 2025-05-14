@@ -101,10 +101,12 @@ Resources:
             unzip awscliv2.zip
             ./aws/install --update
 
-            # TODO - Create script to configure kubectl to connect to eks cluster.
-            # It can't be done now because the Cluster doesn't trust the BH Instance Role yet
+            # Configure kubectl to connect to eks cluster.
+            # Must sleep to give deployment time to have EKS Cluster trust the Instance Role
+            sleep 180 
             kubectl version --client
             aws sts get-caller-identity
+            aws eks update-kubeconfig --region ${AWS::Region} --name ${clusterName}
 
             # Download and install newest version of helm
             curl -LO https://get.helm.sh/helm-${helmVersion}-linux-amd64.tar.gz
