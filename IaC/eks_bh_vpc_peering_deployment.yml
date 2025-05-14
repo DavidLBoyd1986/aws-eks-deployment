@@ -5,15 +5,15 @@ Description: CloudFormation template to create a VPC Peering connection between 
 Resources:
 
   # Who Requests/Accepts the VPC Peering Connection
-  EKSHackingVPCPeeringConnection:
+  EKSVPCPeeringConnection:
     Type: AWS::EC2::VPCPeeringConnection
     Properties:
       VpcId: !ImportValue BHVpcId
-      PeerVpcId: !ImportValue EKSHackingVpcId
+      PeerVpcId: !ImportValue EKSPublicCluster-VpcId
       PeerRegion: us-east-1 # Region of Peer VPC
       Tags:
         - Key: Name
-          Value: EKSHackingVpcPeering
+          Value: EKSPublicCluster-VpcPeering
         - Key: Deployment
           Value: IaC
         - Key: CostMoney
@@ -21,17 +21,24 @@ Resources:
         - Key: CanDelete
           Value: false
 
-  RouteToEKSVPC:
+  RouteToEKSPublicSubnet01:
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !ImportValue EKSVpcPublicRouteTable
+      RouteTableId: !ImportValue EKSPublicCluster-VpcPublicRouteTableOne
       DestinationCidrBlock: !ImportValue BHVpcCidrBlock
-      VpcPeeringConnectionId: !Ref EKSHackingVPCPeeringConnection
+      VpcPeeringConnectionId: !Ref EKSVPCPeeringConnection
+
+  RouteToEKSPublicSubnet02:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !ImportValue EKSPublicCluster-VpcPublicRouteTableTwo
+      DestinationCidrBlock: !ImportValue BHVpcCidrBlock
+      VpcPeeringConnectionId: !Ref EKSVPCPeeringConnection
 
   RouteToBHVPC:
     Type: AWS::EC2::Route
     Properties:
       RouteTableId: !ImportValue BHVpcPublicRouteTable
-      DestinationCidrBlock: !ImportValue EKSVpcCidrBlock
-      VpcPeeringConnectionId: !Ref EKSHackingVPCPeeringConnection
+      DestinationCidrBlock: !ImportValue EKSPublicCluster-VpcCidrBlock
+      VpcPeeringConnectionId: !Ref EKSVPCPeeringConnection
 

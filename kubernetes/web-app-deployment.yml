@@ -1,22 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: vulnerable-web-app-deployment
-  namespace: vulnerable-web-app
+  name: ${KUBE_NAMESPACE}-deployment
+  namespace: ${KUBE_NAMESPACE}
   labels:
-    app: vulnerable-web-app-webgoat
+    app: ${KUBE_NAMESPACE}-webgoat
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: vulnerable-web-app-webgoat
+      app: ${KUBE_NAMESPACE}-webgoat
   template:
     metadata:
       labels:
-        app: vulnerable-web-app-webgoat
+        app: ${KUBE_NAMESPACE}-webgoat
     spec:
+      #serviceAccountName: aws-load-balancer-controller
       containers:
-      - name: vulnerable-web-app
+      - name: ${KUBE_NAMESPACE}
         image: webgoat/webgoat
         ports:
         - name: http

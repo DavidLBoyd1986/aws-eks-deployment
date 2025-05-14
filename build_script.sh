@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Replace with your variables:
+
 echo "Starting deployment...."
 
 # Get the directory where the script is located
@@ -70,15 +72,15 @@ aws cloudformation deploy --stack-name eks-infrastructure-stack \
         # TODO - Region here needs updated manually
 
 # Configure Kubernetes:
-    # kubectl create namespace vulnerable-web-app
-    # kubectl apply -f vulnerable-web-app-deployment.yml
+    # kubectl create namespace vulnerable-${KUBE_NAMESPACE}
+    # kubectl apply -f vulnerable-${KUBE_NAMESPACE}-deployment.yml
     # kubectl apply -f service.yml
 
 
 # Run some test commands
     # kubectl get nodes
     # aws eks describe-nodegroup --cluster-name EKSHackingNodeCluster --nodegroup-name EKSHackingNodeGroup
-    # kubectl get all -n vulnerable-web-app
-    # kubectl -n vulnerable-web-app describe service vulnerable-web-app-service
+    # kubectl get all -n vulnerable-${KUBE_NAMESPACE}
+    # kubectl -n vulnerable-${KUBE_NAMESPACE} describe service vulnerable-${KUBE_NAMESPACE}-service
 
 echo "Deployment Finished!"

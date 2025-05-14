@@ -1,4 +1,31 @@
-<h1>Private EKS and Public Bastion Hosts</h1>
+<h1>EKS Cluster and Bastion Host Deployment</h1>
+
+This repository contains CloudFormation templates to launch an EKS Cluster in its own VPC, Bastion Hosts in a separate VPC, and a VPC Peering Connection to connect the two VPCS. It also contains the Kubernetes Resource yaml files to deploy an application (WebGoat) to the Cluster, and create an external connection to the application. Lastly, it contains multiple deployment methods: shell script, Jenkinsfile, and gitlab.ci file.
+
+Only the Jenkinsfile is finished to fully deploy everything.
+
+The deployment methods deploy an AWS Load Balancer Controller to the EKS Cluster so NLBs and ALBs will automatically be created when a Kubernetes Service/Ingress is created for an application.
+
+<h2>Public and Private Clusters</h2>
+
+The current cluster is deployed as a Public Cluster; however, the parameters.json files under ./parameters have a "personalPublicIP" parameter, which if defined, will limit traffic to the cluster to the defined personalPublicIp.
+
+Limiting incoming traffic to the Cluster, to only the personalPublicIp, is only in regards to accessing the cluster/nodes directly; i.e. running kubectl
+
+Once the Load Balancer is deployed and functioning, all Public HTTP(s) traffic will be allowed to the port defined for the Load Balancer/Application. However, that Public HTTP traffic will NOT be able to access the Cluster itself.
+
+The Bastion Hosts will be able to access the Cluster, and come configured with kubectl, and having authenticated access to the Cluster.
+
+The personalPublicIp is only for the Deployment methods to run kubectl commands to setup and configure the Cluster. The EKS NodeGroup Security Group rules allowing access from the personalPublicIp can be removed after the deployment is complete, and all cluster interactions can be performed from the Linux Bastion Host using kubectl.
+
+The personalPublicIP is defined as a range, so to limit it to one IP use this format:
+
+    1.2.3.4/32
+
+To make the cluster fully publicly accessible, remove the personalPublicIp parameters from the parameters.json files, and the personalPublicIp variable will default to 0.0.0.0/0. THIS IS NOT RECOMMENDED.
+
+A completely private EKS Cluster deployment will be created as a separate branch in the future.
+
 <h2>CloudFormation Deployment</h2>
 
 Generates a VPC with Bastion Hosts (Linux and Windows), and a VPC running a Private EKS Cluster.

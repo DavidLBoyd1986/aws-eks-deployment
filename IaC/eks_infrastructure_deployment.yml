@@ -1,19 +1,19 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'EKS VPC with webgoat for hacking.'
+Description: 'Creates the EKS Infrastructure - Cluster and Nodegroup.'
 
 Parameters:
   ClusterName:
     Type: String
-    Default: EKSHackingCluster
+    Default: $CLUSTER_NAME
     Description: Name of the EKS Cluster
   NodeGroupName:
     Type: String
-    Default: EKSHackingNodeGroup
+    Default: EKSPublicClusterNodeGroup
     Description: Name of the EKS NodeGroup
   AmiId:
     Type: String
-    Default: ami-053f582f07162d4c6
+    Default: $AMI_ID
     Description: AMI ID used for Nodes
   DesiredCapacity:
     Type: Number
@@ -29,7 +29,7 @@ Parameters:
     Description: Min number of worker nodes
 
 Resources:
-  EKSHackingCluster:
+  EKSPublicCluster:
     Type: AWS::EKS::Cluster
     Properties:
       Name: !Ref ClusterName
@@ -40,13 +40,14 @@ Resources:
         EndpointPrivateAccess: true
         EndpointPublicAccess: true 
         SubnetIds:
-          - !ImportValue EKSHackingPublicSubnet
-          - !ImportValue EKSHackingPrivateSubnetOne
-          - !ImportValue EKSHackingPrivateSubnetTwo
+          - !ImportValue EKSPublicCluster-PublicSubnetOne
+          - !ImportValue EKSPublicCluster-PublicSubnetTwo
+          - !ImportValue EKSPublicCluster-PrivateSubnetOne
+          - !ImportValue EKSPublicCluster-PrivateSubnetTwo
         SecurityGroupIds:
-          - !ImportValue EKSHackingControlPlaneSecurityGroup
-          - !ImportValue EKSHackingWorkerNodeSecurityGroup
-      RoleArn: !ImportValue EKSHackingClusterRoleARN
+          - !ImportValue EKSPublicCluster-ControlPlaneSecurityGroup
+          - !ImportValue EKSPublicCluster-WorkerNodeSecurityGroup
+      RoleArn: !ImportValue EKSPublicClusterRoleARN
       Tags:
       - Key: Deployment
         Value: IaC 
@@ -55,31 +56,32 @@ Resources:
       - Key: CanDelete
         Value: True
 
-  EKSHackingNodeGroup:
+  EKSPublicClusterNodeGroup:
     DependsOn:
-      - EKSHackingCluster
+      - EKSPublicCluster
     Type: AWS::EKS::Nodegroup
     Properties:
       ClusterName: !Ref ClusterName
       InstanceTypes: 
         - t3.large # This can't be a t2.micro. If you see a can't assign IP Error for pods, the instance is too small
       NodegroupName: !Ref NodeGroupName
-      NodeRole: !ImportValue EKSHackingNodeRoleARN
+      NodeRole: !ImportValue EKSPublicClusterNodeRoleARN
       ScalingConfig:
         DesiredSize:  !Ref DesiredCapacity
         MaxSize:  !Ref MaxSize
         MinSize:  !Ref MinSize
       Subnets: 
-          -  !ImportValue EKSHackingPublicSubnet
-          -  !ImportValue EKSHackingPrivateSubnetOne
-          -  !ImportValue EKSHackingPrivateSubnetTwo
+          - !ImportValue EKSPublicCluster-PublicSubnetOne
+          - !ImportValue EKSPublicCluster-PublicSubnetTwo
+          - !ImportValue EKSPublicCluster-PrivateSubnetOne
+          - !ImportValue EKSPublicCluster-PrivateSubnetTwo
       LaunchTemplate:
-        Id: !Ref EKSHackingLaunchTemplate
+        Id: !Ref EKSPublicClusterLaunchTemplate
   
-  EKSHackingLaunchTemplate:
+  EKSPublicClusterLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
-      LaunchTemplateName: EKSHackingLaunchTemplate
+      LaunchTemplateName: EKSPublicClusterLaunchTemplate
       VersionDescription: "Bootstrap the Node, and Install the Cloud Agent."
       LaunchTemplateData:
         ImageId: !Ref AmiId
@@ -89,8 +91,8 @@ Resources:
               VolumeSize: 20
         #Manually add in SGs after creation
         SecurityGroupIds:
-          - !ImportValue EKSHackingControlPlaneSecurityGroup
-          - !ImportValue EKSHackingWorkerNodeSecurityGroup
+          - !ImportValue EKSPublicCluster-ControlPlaneSecurityGroup
+          - !ImportValue EKSPublicCluster-WorkerNodeSecurityGroup
         #KeyName: !ImportValue EKSKeyPair  # Need to create, only used for troubleshooting
         UserData:
           Fn::Base64: !Sub |
@@ -104,3 +106,10 @@ Resources:
             K8S_CLUSTER_DNS_IP=10.100.0.10
 
             /etc/eks/bootstrap.sh ${ClusterName} --kubelet-extra-args '--node-labels=eks.amazonaws.com/nodegroup-image=i${AmiId},eks.amazonaws.com/capacityType=ON_DEMAND,eks.amazonaws.com/nodegroup=${NodeGroupName} --max-pods=17' --b64-cluster-ca $B64_CLUSTER_CA --apiserver-endpoint $API_SERVER_URL --dns-cluster-ip $K8S_CLUSTER_DNS_IP --use-max-pods false
+
+Outputs:
+  ClusterName:
+    Value: !Ref ClusterName
+    Description: This is the ClusterName
+    Export:
+      Name: ClusterName

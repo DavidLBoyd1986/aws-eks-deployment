@@ -1,7 +1,7 @@
 [
     {
-      "ParameterKey": "personalPublicIP",
-      "ParameterValue": "0.0.0.0/0"
+      "ParameterKey": "personalPublicIp",
+      "ParameterValue": "$PUBLIC_IP_RANGE"
     },
     {
       "ParameterKey": "userName",
@@ -18,5 +18,17 @@
     {
       "ParameterKey": "EKSPublicKey",
       "ParameterValue": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCuZ4AgV2uhvyIk3l+8bB6AqNpU8+coPdtvjT0P7G5hxkqrDtmc6v/fcV9i+sGlue4yJPzLRGets517b03dnlFnE3iPkfzNBkkcuCSJ7bM4VRECPny1/iSjZ6JxchmOeHT9iJVlthKSmt1ga/xQMpARAH5/KU3wD3Z0KEDnOXFYVTGNr/7CKcwMXIvseyA6suQpTfIwPWWSIUcl+p+8q6Zr9QuUdbxniN/rVAr13e5afr90meCx1EhjyVzHSa2zSAVhJP2SAwbU1Yo9OVImbCtihoZYkb364H9NQXx0SumBN5tzvAckkf5wyabR8Oj8NeNzoK78zvD2v/JwigG42Hwb dboyd@rhel-bastion"
+    },
+    {
+      "ParameterKey": "clusterName",
+      "ParameterValue": "$CLUSTER_NAME"
+    },
+    {
+      "ParameterKey": "kubeVersion",
+      "ParameterValue": "$KUBE_VERSION"
+    },
+    {
+      "ParameterKey": "helmVersion",
+      "ParameterValue": "$HELM_VERSION"
     }
-  ]
+]

@@ -1,18 +1,29 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Amazon EKS VPC for Web App Testing - Only Private subnet'
+Description: 'Amazon EKS VPC for an EKS Cluster. This is for a Public facing Cluster.'
 
 Parameters:
+
+  personalPublicIp:
+    Type: String
+    Default: 0.0.0.0/0 # Defaults to fully public if parameter is deleted from parameters.json
+    Description: Add your personal Public IP as a parameter to access the Cluster. The Default value makes the Cluster fully public.
+    # Must be added added as variable to build_script.sh or as a CICD variable in Gitlab or Jenkins Credential.
 
   VpcBlock:
     Type: String
     Default: 192.168.1.0/24
     Description: The CIDR range for the VPC. This should be a valid private (RFC 1918) CIDR range.
 
-  PublicSubnetBlock:
+  PublicSubnet01Block:
     Type: String
-    Default: 192.168.1.0/25
+    Default: 192.168.1.0/26
     Description: CidrBlock for public subnet 01 within the VPC
+
+  PublicSubnet02Block:
+    Type: String
+    Default: 192.168.1.64/26
+    Description: CidrBlock for public subnet 02 within the VPC
 
   PrivateSubnet01Block:
     Type: String
@@ -32,7 +43,8 @@ Metadata:
           default: "Worker Network Configuration"
         Parameters:
           - VpcBlock
-          - PublicSubnetBlock
+          - PublicSubnet01Block
+          - PublicSubnet02Block
           - PrivateSubnet01Block
           - PrivateSubnet02Block
 
@@ -56,15 +68,25 @@ Resources:
       InternetGatewayId: !Ref InternetGateway
       VpcId: !Ref VPC
 
-  PublicRouteTable:
+  PublicRouteTable01:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: Public Subnets
+        Value: Public Subnet AZ1
       - Key: Network
-        Value: Public
+        Value: Public01
+
+  PublicRouteTable02:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Public Subnet AZ2
+      - Key: Network
+        Value: Public02
 
   PrivateRouteTable01:
     Type: AWS::EC2::RouteTable
@@ -86,11 +108,19 @@ Resources:
       - Key: Network
         Value: Private02
 
-  PublicRoute:
+  PublicRoute01:
     DependsOn: VPCGatewayAttachment
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !Ref PublicRouteTable
+      RouteTableId: !Ref PublicRouteTable01
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicRoute02:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable02
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
 
@@ -101,7 +131,7 @@ Resources:
     Properties:
       RouteTableId: !Ref PrivateRouteTable01
       DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGateway
+      NatGatewayId: !Ref NatGateway01
 
   PrivateRoute02:
     DependsOn:
@@ -110,18 +140,29 @@ Resources:
     Properties:
       RouteTableId: !Ref PrivateRouteTable02
       DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGateway
+      NatGatewayId: !Ref NatGateway02
 
-  NatGateway:
+  NatGateway01:
     DependsOn:
       - VPCGatewayAttachment
     Type: AWS::EC2::NatGateway
     Properties:
       AllocationId: !GetAtt 'NatGatewayEIP1.AllocationId'
-      SubnetId: !Ref PublicSubnet
+      SubnetId: !Ref PublicSubnet01
       Tags:
       - Key: Name
         Value: !Sub '${AWS::StackName}-NatGatewayAZ1'
+
+  NatGateway02:
+    DependsOn:
+      - VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NatGatewayEIP2.AllocationId'
+      SubnetId: !Ref PublicSubnet02
+      Tags:
+      - Key: Name
+        Value: !Sub '${AWS::StackName}-NatGatewayAZ2'
 
   NatGatewayEIP1:
     DependsOn:
@@ -130,7 +171,14 @@ Resources:
     Properties:
       Domain: vpc
 
-  PublicSubnet:
+  NatGatewayEIP2:
+    DependsOn:
+    - VPCGatewayAttachment
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+
+  PublicSubnet01:
     Type: AWS::EC2::Subnet
     Properties:
       MapPublicIpOnLaunch: true
@@ -140,12 +188,31 @@ Resources:
         - Fn::GetAZs:
             Ref: AWS::Region
       CidrBlock:
-        Ref: PublicSubnetBlock
+        Ref: PublicSubnet01Block
       VpcId:
         Ref: VPC
       Tags:
       - Key: Name
-        Value: !Sub "${AWS::StackName}-PublicSubnet"
+        Value: !Sub "${AWS::StackName}-PublicSubnet01"
+      - Key: kubernetes.io/role/elb
+        Value: 1
+
+  PublicSubnet02:
+    Type: AWS::EC2::Subnet
+    Properties:
+      MapPublicIpOnLaunch: true
+      AvailabilityZone:
+        Fn::Select:
+        - '1'
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock:
+        Ref: PublicSubnet02Block
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-PublicSubnet02"
       - Key: kubernetes.io/role/elb
         Value: 1
 
@@ -187,11 +254,17 @@ Resources:
       - Key: kubernetes.io/role/internal-elb
         Value: 1
 
-  PublicSubnetRouteTableAssociation:
+  PublicSubnet01RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PublicSubnet
-      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet01
+      RouteTableId: !Ref PublicRouteTable01
+
+  PublicSubnet02RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet02
+      RouteTableId: !Ref PublicRouteTable02
 
   PrivateSubnet01RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -205,23 +278,25 @@ Resources:
       SubnetId: !Ref PrivateSubnet02
       RouteTableId: !Ref PrivateRouteTable02
 
+# Allows the Cluster's private IP range to access the Control Plane, and the Control Plane to send return traffic anywhere.
   ControlPlaneSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: EKS Control Plane Security Group
       VpcId: !Ref VPC
       GroupName: ControlPlaneSecurityGroup 
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443 
+          CidrIp: !Ref VpcBlock
       SecurityGroupEgress:
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443 
           CidrIp: 0.0.0.0/0
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443 
-          CidrIp: 192.168.1.0/24
 
+# This Security Group controls all access to the Cluster: Nodes, Pods, etc...
   WorkerNodeSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -229,34 +304,83 @@ Resources:
       VpcId: !Ref VPC
       GroupName: WorkerNodeSecurityGroup 
       SecurityGroupIngress:
+# PUBLIC ACCESS RULES:
+  # These can be deleted after the stack has been fully deployed.
+  # They are only added so the CICD Pipeline can configure the cluster.
         - IpProtocol: tcp
+          FromPort: 8080 
+          ToPort: 8080
+          CidrIp: !Ref personalPublicIp
+        - IpProtocol: tcp
+          FromPort: 80 
+          ToPort: 80
+          CidrIp: !Ref personalPublicIp
+        - IpProtocol: tcp
+          FromPort: 443 
+          ToPort: 443
+          CidrIp: !Ref personalPublicIp
+        - IpProtocol: udp # Test delete
+          FromPort: 0
+          ToPort: 53
+          CidrIp: !Ref personalPublicIp
+        - IpProtocol: tcp # Test delete
+          FromPort: 53
+          ToPort: 53
+          CidrIp: !Ref personalPublicIp
+        - IpProtocol: icmp # Test delete
+          FromPort: -1
+          ToPort: -1
+          CidrIp: !Ref personalPublicIp
+        - IpProtocol: icmpv6 # Test delete
+          FromPort: -1
+          ToPort: -1
+          CidrIp: !Ref personalPublicIp
+# NODE ACCESS RULES:
+  # These rules allow EKS VPC network traffic to access the Nodes.
+  # A lot of these are only included because they are common non-standard http(s) ports:
+  # i.e. 8080, 8443, 9443 - 9443 is required for the AWS Load Balancer Controller
+        # Uncomment to allow all traffic
+        #- IpProtocol: tcp
+        #  FromPort: 0 
+        #  ToPort: 65535 
+        #  CidrIp: 192.168.1.0/24 
+        # Uncomment to use NodePort Services
+        #- IpProtocol: tcp
+        #  FromPort: 30000
+        #  ToPort: 32767
+        #  CidrIp: !Ref personalPublicIp 
+        - IpProtocol: tcp # Required
+          FromPort: 80 
+          ToPort: 80
+          CidrIp: !Ref VpcBlock
+        - IpProtocol: tcp
+          FromPort: 8080 
+          ToPort: 8080
+          CidrIp: !Ref VpcBlock
+        - IpProtocol: tcp # Required
           FromPort: 443
           ToPort: 443
-          CidrIp: 192.168.1.0/24 
+          CidrIp: !Ref VpcBlock
         - IpProtocol: tcp
+          FromPort: 8443
+          ToPort: 8443
+          CidrIp: !Ref VpcBlock
+        - IpProtocol: tcp # Required
+          FromPort: 9443
+          ToPort: 9443
+          CidrIp: !Ref VpcBlock
+        - IpProtocol: tcp # Required
           FromPort: 10250
           ToPort: 10250
-          CidrIp: 192.168.1.0/24 
-        - IpProtocol: udp
-          FromPort: 53
-          ToPort: 53
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 53
-          ToPort: 53
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 30000
-          ToPort: 32767
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 0 
-          ToPort: 65535 
-          CidrIp: !ImportValue BHVpcCidrBlock
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: !ImportValue BHVpcCidrBlock
+          CidrIp: !Ref VpcBlock
+# BASTION HOST ACCESS RULES:
+  # These allow traffic from the Bastion Host VPC to interact with the Cluster
+  # A lot of these are only included because they are common non-standard http(s) ports:
+        # Uncomment to allow all traffic
+        #- IpProtocol: tcp
+        #  FromPort: 0 
+        #  ToPort: 65535 
+        #  CidrIp: !ImportValue BHVpcCidrBlock
         - IpProtocol: icmp
           FromPort: -1
           ToPort: -1
@@ -265,6 +389,27 @@ Resources:
           FromPort: -1
           ToPort: -1
           CidrIp: !ImportValue BHVpcCidrBlock
+        - IpProtocol: tcp # Required
+          FromPort: 80 
+          ToPort: 80
+          CidrIp: !ImportValue BHVpcCidrBlock
+        - IpProtocol: tcp
+          FromPort: 8080 
+          ToPort: 8080
+          CidrIp: !ImportValue BHVpcCidrBlock
+        - IpProtocol: tcp # Required
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !ImportValue BHVpcCidrBlock
+        - IpProtocol: tcp
+          FromPort: 8443
+          ToPort: 8443
+          CidrIp: !ImportValue BHVpcCidrBlock
+        - IpProtocol: tcp 
+          FromPort: 9443
+          ToPort: 9443
+          CidrIp: !ImportValue BHVpcCidrBlock
+# BASTION HOST ACCESS RULES:
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
@@ -275,53 +420,66 @@ Outputs:
     Description: Subnets IDs in the VPC
     Value: !Join [ ",", [ !Ref PrivateSubnet01, !Ref PrivateSubnet02 ] ]
 
-  PublicSubnet:
-    Description: The subnet ID to use for public web servers
+  PublicSubnet01:
+    Description: The subnet ID for public subnet 01
     Value:
-      Ref: PublicSubnet
+      Ref: PublicSubnet01
     Export:
-      Name: EKSHackingPublicSubnet
+      Name: EKSPublicCluster-PublicSubnetOne
+
+  PublicSubnet02:
+    Description: The subnet ID for public subnet 02
+    Value:
+      Ref: PublicSubnet02
+    Export:
+      Name: EKSPublicCluster-PublicSubnetTwo
 
   PrivateSubnet01:
-    Description: The subnet ID to use for private web servers
+    Description: The subnet ID for private subnet 01
     Value:
       Ref: PrivateSubnet01
     Export:
-      Name: EKSHackingPrivateSubnetOne
+      Name: EKSPublicCluster-PrivateSubnetOne
 
   PrivateSubnet02:
-    Description: The subnet ID to use for private web servers
+    Description: The subnet ID for private subnet 02
     Value:
       Ref: PrivateSubnet02
     Export:
-      Name: EKSHackingPrivateSubnetTwo
+      Name: EKSPublicCluster-PrivateSubnetTwo
 
   ControlPlaneSecurityGroup:
     Description: Security group for the cluster control plane communication with worker nodes
     Value: !Ref ControlPlaneSecurityGroup
     Export:
-      Name: EKSHackingControlPlaneSecurityGroup
+      Name: EKSPublicCluster-ControlPlaneSecurityGroup
 
   WorkerNodeSecurityGroup:
     Description: Security group for the cluster worker nodes
     Value: !Ref WorkerNodeSecurityGroup
     Export:
-      Name: EKSHackingWorkerNodeSecurityGroup
+      Name: EKSPublicCluster-WorkerNodeSecurityGroup
 
   EksVpcId:
     Description: The VPC Id
     Value: !Ref VPC
     Export:
-      Name: EKSHackingVpcId
+      Name: EKSPublicCluster-VpcId
  
   VpcBlock:
     Description: CIDR for VPC Block
     Value: !GetAtt VPC.CidrBlock
     Export:
-      Name: EKSVpcCidrBlock
+      Name: EKSPublicCluster-VpcCidrBlock
 
-  PublicRouteTable:
-    Description: The Public Route Table for this VPC
-    Value: !Ref PublicRouteTable
+  PublicRouteTable01:
+    Description: The Public Route Table for public subnet 1 in this VPC
+    Value: !Ref PublicRouteTable01
     Export:
-      Name: EKSVpcPublicRouteTable
+      Name: EKSPublicCluster-VpcPublicRouteTableOne
+
+  PublicRouteTable02:
+    Description: The Public Route Table for public subnet 2 in this VPC
+    Value: !Ref PublicRouteTable02
+    Export:
+      Name: EKSPublicCluster-VpcPublicRouteTableTwo

@@ -1,31 +1,44 @@
 ---
 Parameters:
 
-  personalPublicIP:
+  personalPublicIp:
     Type: String
+    Default: 0.0.0.0/0 # Defaults to fully public if parameter is deleted from parameters.json
     Description: Public IP of User connecting to the Bastion Hosts.
-    # Must be added to cloudformation command in build_script.sh that deploys this stack.
+    # Must be added added as variable to build_script.sh or as a CICD variable in Gitlab or Jenkins Credential.
   
   userName:
     Type: String
     Description: IAM User added to the Bastion Hosts.
-    # Must be added to cloudformation command in build_script.sh that deploys this stack.
+    # Must be added added as variable to build_script.sh or as a CICD variable in Gitlab or Jenkins Credential.
 
   userPass:
     Type: String
     Description: Password for the IAM User added to the Bastion Hosts.
-    # Must be added to cloudformation command in build_script.sh that deploys this stack.
+    # Must be added added as variable to build_script.sh or as a CICD variable in Gitlab or Jenkins Credential.
 
   bastionHostPublicKey:
     Type: String
     Description: The public ssh key material for user added to the Bastion Hosts
-    # Must be added to cloudformation command in build_script.sh that deploys this stack.
+    # Must be added added as variable to build_script.sh or as a CICD variable in Gitlab or Jenkins Credential.
 
   EKSPublicKey:
     Type: String
     Description: The public ssh key material for accessing EKS Nodes
-    # Must be added to cloudformation command in build_script.sh that deploys this stack.
+    # Must be added added as variable to build_script.sh or as a CICD variable in Gitlab or Jenkins Credential.
     # IMPORTANT - you will have to manually copy the private key to the bastion host to use it.
+
+  clusterName:
+    Type: String
+    Description: The name of the EKS Cluster for kubectl to connect to.
+
+  kubeVersion:
+    Type: String
+    Description: The version of Kubernetes used in the Cluster
+
+  helmVersion:
+    Type: String
+    Description: The newest version of helm to be installed
 
 Resources:
 
@@ -59,34 +72,54 @@ Resources:
       - Key: CanDelete
         Value: True
       UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-          # Create a normal user with admin permissions
-          useradd -m ${userName}
-          echo "${userName} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-          mkdir -p /home/${userName}/.ssh
-          echo "${bastionHostPublicKey}" >> /home/${userName}/.ssh/authorized_keys
-          chmod 600 /home/${userName}/.ssh/authorized_keys
-          chown -R ${userName}:${userName} /home/${userName}/.ssh
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash
+            # Create a normal user with admin permissions
+            useradd -m ${userName}
+            echo "${userName} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+            mkdir -p /home/${userName}/.ssh
+            echo "${bastionHostPublicKey}" >> /home/${userName}/.ssh/authorized_keys
+            chmod 600 /home/${userName}/.ssh/authorized_keys
+            chown -R ${userName}:${userName} /home/${userName}/.ssh
 
-          # Configure kubernetes repo, then install kubectl
-          cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
-          [kubernetes]
-          name=Kubernetes
-          baseurl=https://pkgs.k8s.io/core:/stable:/v1.32/rpm/
-          enabled=1
-          gpgcheck=1
-          gpgkey=https://pkgs.k8s.io/core:/stable:/v1.32/rpm/repodata/repomd.xml.key
-          EOF
+            # Configure kubernetes repo, then install kubectl
+            cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+            [kubernetes]
+            name=Kubernetes
+            baseurl=https://pkgs.k8s.io/core:/stable:/v${kubeVersion}/rpm/
+            enabled=1
+            gpgcheck=1
+            gpgkey=https://pkgs.k8s.io/core:/stable:/v${kubeVersion}/rpm/repodata/repomd.xml.key
+            EOF
 
-          yum install -y kubectl
+            yum install -y kubectl
 
-          # Install aws-cli
-          yum install -y unzip
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" --output awscliv2.zip
-          unzip awscliv2.zip
-          ./aws/install --update
+            # Install aws-cli
+            yum install -y unzip
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" --output awscliv2.zip
+            unzip awscliv2.zip
+            ./aws/install --update
 
+            # Configure kubectl to connect to eks cluster.
+            # Must sleep to give deployment time to have EKS Cluster trust the Instance Role
+            sleep 180 
+            kubectl version --client
+            aws sts get-caller-identity
+            aws eks update-kubeconfig --region ${AWS::Region} --name ${clusterName}
+
+            # Download and install newest version of helm
+            curl -LO https://get.helm.sh/helm-${helmVersion}-linux-amd64.tar.gz
+            tar -zxvf helm-${helmVersion}-linux-amd64.tar.gz
+            sudo mv linux-amd64/helm /usr/local/bin/helm
+
+            # Download and install newest version of eksctl
+            # for ARM systems, set ARCH to: `arm64`, `armv6` or `armv7`
+            ARCH=amd64
+            PLATFORM=$(uname -s)_$ARCH
+            curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
+            tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm eksctl_$PLATFORM.tar.gz
+            sudo mv /tmp/eksctl /usr/local/bin
 
   windowsBastionHost:
     Type: AWS::EC2::Instance
@@ -105,12 +138,13 @@ Resources:
       - Key: CanDelete
         Value: True
       UserData:
-        Fn::Base64: !Sub |
-          <powershell>
-          # Create a normal user with admin permissions
-          net user ${userName} ${userPass} /add
-          net localgroup Administrators ${userName} /add
-          </powershell>
+        Fn::Base64:
+          Fn::Sub: |
+            <powershell>
+            # Create a normal user with admin permissions
+            net user ${userName} ${userPass} /add
+            net localgroup Administrators ${userName} /add
+            </powershell>
 
   bastionHostSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -125,11 +159,11 @@ Resources:
         - IpProtocol: tcp
           FromPort: 3389
           ToPort: 3389
-          CidrIP: !Ref personalPublicIP # Allow inbound traffic from personal IP
+          CidrIP: !Ref personalPublicIp # Allow inbound traffic from personal IP
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIP: !Ref personalPublicIP # Allow inbound traffic from personal IP
+          CidrIP: !Ref personalPublicIp # Allow inbound traffic from personal IP
       Tags: 
       - Key: Deployment
         Value: IaC

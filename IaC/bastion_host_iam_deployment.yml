@@ -24,6 +24,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - eks:DescribeCluster
+                  - eks:DescribeClusterVersions
                   - eks:ListClusters
                   - eks:AccessKubernetesApi
                 Resource: "*"
@@ -40,8 +41,8 @@ Resources:
               # Allow access to SSM for session management
               - Effect: Allow
                 Action:
-                  - ssm:DescribeSession
-                  - ssm:GetSession
+#                  - ssm:DescribeSession
+#                  - ssm:GetSession
                   - ssm:StartSession
                   - ssm:TerminateSession
                   - ssm:DescribeInstanceInformation
@@ -54,6 +55,24 @@ Resources:
                   - s3:ListBucket
                 Resource: "*"
 
+              # Allow access to IAM OIDC Identity Providers
+              - Effect: "Allow"
+                Action:
+                  - iam:GetOpenIDConnectProvider
+                  - iam:CreateRole
+                  - iam:GetRole
+                  - iam:TagRole
+                  - iam:AttachRolePolicy
+                Resource: "*"
+
+              # Allow access to CloudFormation Stacks
+              - Effect: "Allow"
+                Action:
+                  - cloudformation:ListStacks
+                  - cloudformation:DescribeStacks
+                  - cloudformation:CreateStack
+                Resource: "*"
+
   BastionHostInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -62,6 +81,12 @@ Resources:
         - !Ref BastionHostRole
 
 Outputs:
+  BastionHostRoleArn:
+    Description: ARN of the Bastion Host Role
+    Value: !GetAtt BastionHostRole.Arn
+    Export:
+      Name: BastionHostRoleArn
+
   InstanceProfileArn:
     Description: Name of the Bastion Host Instance Profile
     Value: !Ref BastionHostInstanceProfile
