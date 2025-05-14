@@ -33,13 +33,22 @@ pipeline {
                         //---------------------------------------
 
                         echo "KUBE_VERSION = ${KUBE_VERSION}"
+                        def HELM_VERSION = sh (
+                            script: """
+                                curl -s https://api.github.com/repos/helm/helm/releases/latest | grep tag_name | cut -d '"' -f 4)
+                                """,
+                            returnStdout: true
+                        ).trim()
+
                         // Replace the variables in the parameters.json file with the actual values:
                         sh """
                             sed -i 's|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g' ./parameters/eks_vpc_parameters.json
                             sed -i 's|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g' ./parameters/bh_infrastructure_parameters.json
                             sed -i 's|\\\$BASTION_USERNAME|${BASTION_USERNAME}|g' ./parameters/bh_infrastructure_parameters.json
                             sed -i 's|\\\$BASTION_PASSWORD|${BASTION_PASSWORD}|g' ./parameters/bh_infrastructure_parameters.json
+                            sed -i 's|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g' ./parameters/bh_infrastructure_parameters.json
                             sed -i 's|\\\$KUBE_VERSION|${KUBE_VERSION}|g' ./parameters/bh_infrastructure_parameters.json
+                            sed -i 's|\\\$HELM_VERSION|${HELM_VERSION}|g' ./parameters/bh_infrastructure_parameters.json
                         """
 
                         // Replace ${KUBE_NAMESPACE} in kubernetes files:
