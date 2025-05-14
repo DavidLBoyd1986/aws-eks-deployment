@@ -165,10 +165,10 @@ pipeline {
 
                         // Get the ARN of the BastionHostRole so it can be given access to the EKS Cluster
                         def bhRoleArn = sh(
-                            script: "aws cloudformation describe-stacks \
-                                    --stack-name bh-iam-stack --region $REGION \
-                                    --query "Stacks[0].Outputs[?OutputKey=='BastionHostRoleArn'].OutputValue" \
-                                    --output text",
+                            script: 'aws cloudformation describe-stacks' +
+                                    '--stack-name bh-iam-stack --region $REGION' +
+                                    '--query "Stacks[0].Outputs[?OutputKey==\'BastionHostRoleArn\'].OutputValue"' +
+                                    '--output text',
                             returnStdout: true
                         ).trim()
 
