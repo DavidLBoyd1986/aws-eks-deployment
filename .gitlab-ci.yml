@@ -31,10 +31,15 @@ variables:
 
 
 stages:    # List of stages and their order of execution
-  - deploy
+  - deploy_preparation
+  - deploy_iac_resources
+  - deploy_cluster_connections
+  - deploy_aws_lb_controller
+  - deploy_applications
+  - deploy_load_balancer
 
 deploy-preparation:
-  stage: deploy
+  stage: deploy_preparation 
   environment: production
   tags:
     - master-server-docker
@@ -82,7 +87,7 @@ deploy-preparation:
 
 
 deploy-cloud-formation-stacks:
-  stage: deploy
+  stage: deploy_iac_resources
   environment: production
   tags:
     - master-server-docker
@@ -142,7 +147,7 @@ deploy-cloud-formation-stacks:
 
 
 deploy-cluster-connections:
-  stage: deploy
+  stage: deploy_cluster_connections
   environment: production
   tags:
     - master-server-docker
@@ -165,7 +170,7 @@ deploy-cluster-connections:
 
 
 deploy-aws-load-balancer-controller:
-  stage: deploy
+  stage: deploy_aws_lb_controller
   environment: production
   tags:
     - master-server-docker
@@ -217,8 +222,8 @@ deploy-aws-load-balancer-controller:
     # Check if the AWS Load Balancer Controller is (finally) installed
     - kubectl get all -n kube-system --selector app.kubernetes.io/name=aws-load-balancer-controller
 
-deploy-application-to-kubernetes:
-  stage: deploy
+deploy-application-to-eks:
+  stage: deploy_applications
   environment: production
   tags:
     - master-server-docker
@@ -242,7 +247,7 @@ deploy-application-to-kubernetes:
 
 
 deploy-nlb-for-application:
-  stage: deploy
+  stage: deploy_load_balancer
   environment: production
   tags:
     - master-server-docker
@@ -272,7 +277,7 @@ deploy-nlb-for-application:
 
 
 deploy-alb-for-application:
-  stage: deploy
+  stage: deploy_load_balancer
   environment: production
   tags:
     - master-server-docker
