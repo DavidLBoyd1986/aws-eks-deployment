@@ -42,7 +42,7 @@ deploy-preparation:
     name: davidboyd1986/aws-kube:latest
   script:
     # Get newest version of HELM to be installed in the Linux Bastion Host:
-    - HELM_VERSION = $(curl -s https://api.github.com/repos/helm/helm/releases/latest | grep tag_name | cut -d '"' -f 4)
+    - HELM_VERSION=$(curl -s https://api.github.com/repos/helm/helm/releases/latest | grep tag_name | cut -d '"' -f 4)
     - echo $HELM_VERSION
 
     # Replace variables in the CloudFormation files:
@@ -60,12 +60,12 @@ deploy-preparation:
     - sed -i 's|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g' ./kubernetes/web-app-ingress.yml
 
     # Get AWS ACCOUNT ID 
-    - AWS_ACCOUNT_ID = $(aws sts get-caller-identity --query Account --output text)
+    - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
     # Get AMI ID for the aws-eks-optimized AMIs for the region and specific kubernetes version
-    - AMI_ID = $(aws ssm get-parameter \
-                --name /aws/service/eks/optimized-ami/${KUBE_VERSION}/amazon-linux-2/recommended/image_id \
-                --region ${REGION} --query 'Parameter.Value' --output text)
+    - AMI_ID=$(aws ssm get-parameter \
+               --name /aws/service/eks/optimized-ami/${KUBE_VERSION}/amazon-linux-2/recommended/image_id \
+               --region ${REGION} --query 'Parameter.Value' --output text)
 
     # Replace the variables ($CLUSTER_NAME) in other files with the actual values:
     - sed -i 's|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g' ./IaC/eks_infrastructure_deployment.yml
@@ -136,7 +136,7 @@ deploy-cluster-connections:
     - aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
 
     # Allow Bastion Host's IAM Role to access the Cluster
-    - BASTION_HOST_ROLE_ARN = aws cloudformation describe-stacks --stack-name bh-iam-stack --region $REGION --query "Stacks[0].Outputs[?OutputKey==\'BastionHostRoleArn\'].OutputValue" --output text
+    - BASTION_HOST_ROLE_ARN=aws cloudformation describe-stacks --stack-name bh-iam-stack --region $REGION --query "Stacks[0].Outputs[?OutputKey==\'BastionHostRoleArn\'].OutputValue" --output text
     - echo $BASTION_HOST_ROLE_ARN
     - eksctl create iamidentitymapping --cluster $CLUSTER_NAME --region $REGION --arn $BASTION_HOST_ROLE_ARN --username system:node:{{EC2PrivateDNSName}} --group system:masters
 
@@ -235,7 +235,7 @@ deploy-nlb-for-application:
     - sleep 180
 
     # Get the DNS name for the NLB
-    - NLB_DNS = $(kubectl get svc ${KUBE_NAMESPACE}-nlb-service -n ${KUBE_NAMESPACE} \
+    - NLB_DNS=$(kubectl get svc ${KUBE_NAMESPACE}-nlb-service -n ${KUBE_NAMESPACE} \
         -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 
     - echo $NLB_DNS
@@ -265,7 +265,7 @@ deploy-alb-for-application:
     - sleep 180
 
     # Get the DNS name for the ALB
-    - ALB_DNS = $(kubectl get ingress ${KUBE_NAMESPACE}-ingress -n ${KUBE_NAMESPACE} \
+    - ALB_DNS=$(kubectl get ingress ${KUBE_NAMESPACE}-ingress -n ${KUBE_NAMESPACE} \
         -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 
     - echo $ALB_DNS
