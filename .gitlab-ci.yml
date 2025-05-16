@@ -203,7 +203,7 @@ deploy-aws-load-balancer-controller:
 
     # Check if the AWS Load Balancer Controller Service Account exists in kubernetes, and if not, create it:
     - |
-      if kubectl get serviceaccount aws-load-balancer-controller -n kube-system; then
+      if kubectl get serviceaccount aws-load-balancer-controller -n kube-system > /dev/null 2>&1; then
         echo "The AWS Load Balancer Controller Service Account already exists. Skipping this step..."
       else
         eksctl utils associate-iam-oidc-provider --region $REGION --cluster $CLUSTER_NAME --approve
@@ -217,7 +217,7 @@ deploy-aws-load-balancer-controller:
     - sleep 30
 
     # Test the IAM Role was created automatically when creating the iamserviceaccount:
-    - aws iam get-role --role-name AWSLoadBalancerControllerRole
+    - aws iam get-role --role-name AWSLoadBalancerController
 
     # Test the ServiceAccount was created:
     - kubectl get serviceaccount aws-load-balancer-controller --namespace kube-system --output yaml
@@ -256,7 +256,7 @@ deploy-application-to-eks:
 
     # If the namespace doesn't exist, then create it:
     - |
-      if kubectl get namespace vulnerable-web-app &> /dev/null; then
+      if kubectl get namespace vulnerable-web-app  > /dev/null 2>&1; then
         echo "Namespace vulnerable-web-app exists.";
       else
         echo "Creating vulnerable-web-app namespace";
