@@ -56,18 +56,18 @@ deploy-preparation:
     - echo "IP RANGE - $PUBLIC_IP_RANGE"
 
     # Replace variables in the CloudFormation files:
-    - sed -i 's|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g' ./parameters/eks_vpc_parameters.json
-    - sed -i 's|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g' ./parameters/bh_infrastructure_parameters.json
-    - sed -i 's|\\\$BASTION_USERNAME|${BASTION_USERNAME}|g' ./parameters/bh_infrastructure_parameters.json
-    - sed -i 's|\\\$BASTION_PASSWORD|${BASTION_PASSWORD}|g' ./parameters/bh_infrastructure_parameters.json
-    - sed -i 's|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g' ./parameters/bh_infrastructure_parameters.json
-    - sed -i 's|\\\$KUBE_VERSION|${KUBE_VERSION}|g' ./parameters/bh_infrastructure_parameters.json
-    - sed -i 's|\\\$HELM_VERSION|${HELM_VERSION}|g' ./parameters/bh_infrastructure_parameters.json
+    - sed -i "s|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g" ./parameters/eks_vpc_parameters.json
+    - sed -i "s|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g" ./parameters/bh_infrastructure_parameters.json
+    - sed -i "s|\\\$BASTION_USERNAME|${BASTION_USERNAME}|g" ./parameters/bh_infrastructure_parameters.json
+    - sed -i "s|\\\$BASTION_PASSWORD|${BASTION_PASSWORD}|g" ./parameters/bh_infrastructure_parameters.json
+    - sed -i "s|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g" ./parameters/bh_infrastructure_parameters.json
+    - sed -i "s|\\\$KUBE_VERSION|${KUBE_VERSION}|g" ./parameters/bh_infrastructure_parameters.json
+    - sed -i "s|\\\$HELM_VERSION|${HELM_VERSION}|g" ./parameters/bh_infrastructure_parameters.json
     # Replace ${KUBE_NAMESPACE} in kubernetes files:
-    - sed -i 's|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g' ./kubernetes/web-app-deployment.yml
-    - sed -i 's|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g' ./kubernetes/web-app-nlb.yml
-    - sed -i 's|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g' ./kubernetes/web-app-service.yml
-    - sed -i 's|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g' ./kubernetes/web-app-ingress.yml
+    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-deployment.yml
+    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-nlb.yml
+    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-service.yml
+    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-ingress.yml
 
     # Get AWS ACCOUNT ID 
     - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -79,8 +79,8 @@ deploy-preparation:
         --region ${REGION} --query 'Parameter.Value' --output text)
 
     # Replace the variables ($CLUSTER_NAME) in other files with the actual values:
-    - sed -i 's|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g' ./IaC/eks_infrastructure_deployment.yml
-    - sed -i 's|\\\$AMI_ID|${AMI_ID}|g' ./IaC/eks_infrastructure_deployment.yml
+    - sed -i "s|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g" ./IaC/eks_infrastructure_deployment.yml
+    - sed -i "s|\\\$AMI_ID|${AMI_ID}|g" ./IaC/eks_infrastructure_deployment.yml
 
     # Test the variables were replaced successfully
     - cat ./parameters/bh_infrastructure_parameters.json
