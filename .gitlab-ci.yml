@@ -182,6 +182,10 @@ deploy-aws-load-balancer-controller:
   image:
     name: davidboyd1986/aws-kube:latest
   script:
+
+    # Connect to the Cluster again - needs done for every stage
+    - aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
+
     # Check if AWSLoadBalancerControllerIAMPolicy exists, and if not, create it:
     - |
       if aws iam list-policies --scope Local --query 'Policies[].PolicyName' --output text | grep -o 'AWSLoadBalancerControllerIAMPolicy'; then
@@ -237,6 +241,10 @@ deploy-application-to-eks:
   image:
     name: davidboyd1986/aws-kube:latest
   script:
+
+    # Connect to the Cluster again - needs done for every stage
+    - aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
+
     # If the namespace doesn't exist, then create it:
     - |
       if kubectl get namespace vulnerable-web-app &> /dev/null; then
@@ -263,6 +271,10 @@ deploy-nlb-for-application:
   rules:
     - if: $KUBE_LOAD_BALANCER_TYPE == "NLB"
   script:
+
+    # Connect to the Cluster again - needs done for every stage
+    - aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
+
     # Create the NLB:
     - kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-nlb.yml
 
@@ -293,6 +305,10 @@ deploy-alb-for-application:
   rules:
     - if: $KUBE_LOAD_BALANCER_TYPE == "ALB"
   script:
+
+    # Connect to the Cluster again - needs done for every stage
+    - aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
+
     # Create the ALB:
     - kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-service.yml
     - kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-ingress.yml
