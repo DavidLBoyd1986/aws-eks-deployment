@@ -24,6 +24,7 @@ variables:
   BASTION_USERNAME: $BASTION_USERNAME
   BASTION_PASSWORD: $BASTION_PASSWORD
   PERSONAL_PUBLIC_IP: $PERSONAL_PUBLIC_IP 
+  PUBLIC_IP_RANGE: $PUBLIC_IP_RANGE
   # Possible Future Additions:
   #ECR_REGISTRY: 
   #ECR_REPOSITORY:
@@ -50,10 +51,10 @@ deploy-preparation:
     - |
       HELM_VERSION=$(curl -s https://api.github.com/repos/helm/helm/releases/latest \
         | grep tag_name | cut -d '"' -f 4)
-    - echo "$HELM_VERSION"
+    - echo $HELM_VERSION
 
-    - PUBLIC_IP_RANGE="${PERSONAL_PUBLIC_IP}/32"
-    - echo "IP RANGE - $PUBLIC_IP_RANGE"
+    #- PUBLIC_IP_RANGE=${PERSONAL_PUBLIC_IP}/32
+    - echo $PUBLIC_IP_RANGE
 
     # Replace variables in the CloudFormation files:
     - sed -i "s|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g" ./parameters/eks_vpc_parameters.json
