@@ -46,6 +46,7 @@ deploy-cloudformation:
     - gitlab-runner-docker
   image:
     name: davidboyd1986/aws-kube:latest
+  timeout: 30m # The EKS Cluster takes a long time to deploy
   script:
 
     #--------------------------
