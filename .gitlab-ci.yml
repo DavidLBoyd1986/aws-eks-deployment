@@ -198,6 +198,9 @@ deploy-aws-load-balancer-controller:
         aws iam create-policy --policy-name ${POLICY_NAME} --policy-document file://iam_policy.json
       fi
 
+    # Get AWS ACCOUNT ID 
+    - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
     # Check if the AWS Load Balancer Controller Service Account exists in kubernetes, and if not, create it:
     - |
       if kubectl get serviceaccount aws-load-balancer-controller -n kube-system; then
@@ -206,7 +209,7 @@ deploy-aws-load-balancer-controller:
         eksctl utils associate-iam-oidc-provider --region $REGION --cluster $CLUSTER_NAME --approve
         eksctl create iamserviceaccount --cluster=$CLUSTER_NAME --namespace=kube-system \
           --name=aws-load-balancer-controller --role-name=AWSLoadBalancerController \
-          --attach-policy-arn=arn:aws:iam::${AWSAccountId}:policy/${POLICY_NAME} \
+          --attach-policy-arn=arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${POLICY_NAME} \
           --override-existing-serviceaccounts --region $REGION --approve
       fi
 
