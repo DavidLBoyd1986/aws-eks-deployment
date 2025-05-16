@@ -256,11 +256,11 @@ deploy-application-to-eks:
 
     # If the namespace doesn't exist, then create it:
     - |
-      if kubectl get namespace vulnerable-web-app  > /dev/null 2>&1; then
-        echo "Namespace vulnerable-web-app exists.";
+      if kubectl get namespace ${KUBE_NAMESPACE}  > /dev/null 2>&1; then
+        echo "Namespace ${KUBE_NAMESPACE} exists.";
       else
-        echo "Creating vulnerable-web-app namespace";
-        kubectl create namespace vulnerable-web-app
+        echo "Creating ${KUBE_NAMESPACE} namespace";
+        kubectl create namespace ${KUBE_NAMESPACE}
       fi
 
     - kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-deployment.yml
