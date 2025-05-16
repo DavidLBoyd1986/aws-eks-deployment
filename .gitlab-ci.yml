@@ -99,9 +99,11 @@ deploy-cloudformation-templates:
         --template-file ./IaC/bastion_host_vpc_deployment.yml --region $REGION
 
     # Deploy the EKS VPC Stack
-    - aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE --region $REGION 2> /dev/null | grep -c eks-vpc-stack || echo 0
-    - EKS_VPC_EXISTS=$(aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE --region $REGION 2> /dev/null | grep -c eks-vpc-stack || echo 0)
-    - echo "TEST"
+    - |
+      EKS_VPC_EXISTS=$(aws cloudformation list-stacks \
+        --stack-status-filter CREATE_COMPLETE --region $REGION \
+        2> /dev/null | grep -c eks-vpc-stack || echo 0)
+
     - |
       if [ $EKS_VPC_EXISTS -gt 0 ]; then
         echo "The eks-vpc-stack already exists. Skipping this step....";
@@ -136,7 +138,10 @@ deploy-cloudformation-templates:
     # Deploy the BH Infrastructure Stack
     - |
       BH_INFRA_EXISTS=$(aws cloudformation list-stacks \
-        --stack-status-filter CREATE_COMPLETE | grep -c bh-infrastructure-stack)
+        --stack-status-filter CREATE_COMPLETE | \
+        grep -c bh-infrastructure-stack || echo 0)
+
+    - |
       if [ "$BH_INFRA_EXISTS" -gt 0 ]; then
         echo "The bh-infrastructure-stack already exists. Skipping this step....";
       else
@@ -167,7 +172,7 @@ deploy-cluster-connections:
     - |
       BASTION_HOST_ROLE_ARN=$(aws cloudformation describe-stacks --stack-name bh-iam-stack --region $REGION \
         --query "Stacks[0].Outputs[?OutputKey=='BastionHostRoleArn'].OutputValue" --output text)
-    - echo $BASTION_HOST_ROLE_ARN
+
     - |
       eksctl create iamidentitymapping --cluster $CLUSTER_NAME --region $REGION --arn $BASTION_HOST_ROLE_ARN \
         --username system:node:{{EC2PrivateDNSName}} --group system:masters
@@ -190,9 +195,10 @@ deploy-aws-load-balancer-controller:
 
     # Check if AWSLoadBalancerControllerIAMPolicy exists, and if not, create it:
     - |
-      # Check if AWSLoadBalancerControllerIAMPolicy exists, and if not, create it:
       ALB_CONTROLLER_IAM_POLICY_EXISTS=$(aws iam list-policies --scope Local \
         --query "Policies[?PolicyName=='${POLICY_NAME}']" | grep -c ${POLICY_NAME})
+
+    - |
       if [ "$ALB_CONTROLLER_IAM_POLICY_EXISTS" -gt 0 ]; then
         echo "The policy ${POLICY_NAME} already exists. Skipping this step..."
       else
@@ -207,7 +213,9 @@ deploy-aws-load-balancer-controller:
     - |
       ALB_CONTROLLER_SA_EXISTS=$(kubectl get serviceaccount \
         aws-load-balancer-controller -n kube-system 2> /dev/null \
-        | grep -c aws-load-balancer-controller)
+        | grep -c aws-load-balancer-controller || echo 0)
+
+    - |
       if [ "$ALB_CONTROLLER_SA_EXISTS" -gt 0 ]; then
         echo "The AWS Load Balancer Controller Service Account already exists. Skipping this step..."
       else
@@ -235,6 +243,7 @@ deploy-aws-load-balancer-controller:
       ALB_CONTROLLER_EXISTS=$(kubectl get deployment aws-load-balancer-controller \
         -n kube-system -o jsonpath='{.status.availableReplicas}' 2> /dev/null)
 
+    - |
       if [ "$ALB_CONTROLLER_EXISTS" -gt 0 ]; then
         echo "The AWS Load Balancer Controller already exists. Skipping this step..."
       else
@@ -273,8 +282,10 @@ deploy-application-to-eks:
 
     # If the namespace doesn't exist, then create it:
     - |
-      NAMESPACE_EXISTS=$(kubectl get namespace web-app 2> /dev/null | grep -c web-app)
+      NAMESPACE_EXISTS=$(kubectl get namespace web-app 2> /dev/null | \
+        grep -c web-app || echo 0)
 
+    - |
       if [ "$NAMESPACE_EXISTS" -gt 0 ]; then
         echo "Namespace ${KUBE_NAMESPACE} exists.";
       else
