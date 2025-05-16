@@ -189,6 +189,7 @@ deploy-aws-load-balancer-controller:
       else
         curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.12.0/docs/install/iam_policy.json
         aws iam create-policy --policy-name AWSLoadBalancerControllerIAMPolicy --policy-document file://iam_policy.json
+      fi
 
     # Check if the AWS Load Balancer Controller Service Account exists in kubernetes, and if not, create it:
     - |
@@ -200,6 +201,7 @@ deploy-aws-load-balancer-controller:
           --name=aws-load-balancer-controller --role-name=AWSLoadBalancerControllerRole \
           --attach-policy-arn=arn:aws:iam::${AWSAccountId}:policy/AWSLoadBalancerControllerIAMPolicy \
           --override-existing-serviceaccounts --region $REGION --approve
+      fi
 
     # Test the IAM Role was created automatically when creating the iamserviceaccount:
     - aws iam get-role --role-name AWSLoadBalancerControllerRole
