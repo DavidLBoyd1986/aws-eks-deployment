@@ -42,7 +42,7 @@ deploy-preparation:
   stage: deploy_preparation 
   environment: production
   tags:
-    - master-server-docker
+    - gitlab-runner-docker
   image:
     name: davidboyd1986/aws-kube:latest
   script:
@@ -93,7 +93,7 @@ deploy-cloud-formation-stacks:
   stage: deploy_iac_resources
   environment: production
   tags:
-    - master-server-docker
+    - gitlab-runner-docker
   image:
     name: davidboyd1986/aws-kube:latest
   script:
@@ -153,7 +153,7 @@ deploy-cluster-connections:
   stage: deploy_cluster_connections
   environment: production
   tags:
-    - master-server-docker
+    - gitlab-runner-docker
   image:
     name: davidboyd1986/aws-kube:latest
   script:
@@ -176,7 +176,7 @@ deploy-aws-load-balancer-controller:
   stage: deploy_aws_lb_controller
   environment: production
   tags:
-    - master-server-docker
+    - gitlab-runner-docker
   image:
     name: davidboyd1986/aws-kube:latest
   script:
@@ -229,7 +229,7 @@ deploy-application-to-eks:
   stage: deploy_applications
   environment: production
   tags:
-    - master-server-docker
+    - gitlab-runner-docker
   image:
     name: davidboyd1986/aws-kube:latest
   script:
@@ -253,7 +253,7 @@ deploy-nlb-for-application:
   stage: deploy_load_balancer
   environment: production
   tags:
-    - master-server-docker
+    - gitlab-runner-docker
   image:
     name: davidboyd1986/aws-kube:latest
   rules:
@@ -283,7 +283,7 @@ deploy-alb-for-application:
   stage: deploy_load_balancer
   environment: production
   tags:
-    - master-server-docker
+    - gitlab-runner-docker
   image:
     name: davidboyd1986/aws-kube:latest
   rules:
