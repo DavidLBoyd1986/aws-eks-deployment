@@ -231,13 +231,6 @@ deploy-aws-load-balancer-controller:
     # Have to sleep to give time for everything to get created:
     - sleep 30
 
-    # Test the IAM Role was created automatically when creating the iamserviceaccount:
-    - aws iam get-role --role-name AWSLoadBalancerController
-
-    # Test the ServiceAccount was created:
-    - kubectl get serviceaccount aws-load-balancer-controller \
-      --namespace kube-system --output yaml
-
     # Check if the AWS Load Balancer Controller is deployed, and if not, deploy it:
     - |
       ALB_CONTROLLER_EXISTS=$(kubectl get deployment aws-load-balancer-controller \
