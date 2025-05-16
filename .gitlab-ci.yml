@@ -207,6 +207,9 @@ deploy-aws-load-balancer-controller:
           --override-existing-serviceaccounts --region $REGION --approve
       fi
 
+    # Have to sleep to give time for everything to get created:
+    - sleep 30
+
     # Test the IAM Role was created automatically when creating the iamserviceaccount:
     - aws iam get-role --role-name AWSLoadBalancerControllerRole
 
