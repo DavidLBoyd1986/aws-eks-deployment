@@ -7,7 +7,7 @@ CLUSTER_NAME=EKSPublicCluster
 KUBE_VERSION="1.32"
 KUBE_NAMESPACE=web-app
 KUBE_LOAD_BALANCER_TYPE=NLB # Must be (NLB || ALB)
-REGION=$AWS_DEFAULT_REGION
+REGION=us-east-1
 # Required CICD Variables:
 BASTION_USERNAME=$BASTION_USERNAME
 BASTION_PASSWORD=$BASTION_PASSWORD
@@ -21,6 +21,16 @@ PERSONAL_PUBLIC_IP=$PERSONAL_PUBLIC_IP
 # Replace/Prepare variables
 #--------------------------
 
+# Build_script.sh Deployment requires copying the files to ./build_script_deployment
+# This is so, only the copies in ./build_script_deployment are updated with the parameters.
+# And the script can be ran repeatedly.
+
+# Clean up the directory
+rm -rf build_script_deployment/*
+
+# Copy the original files, so they can be safely updated and deployed from this folder
+cp -rp parameters/ IaC/ kubernetes/ build_script_deployment/
+
 # Get newest version of HELM to be installed in the Linux Bastion Host:
 HELM_VERSION=$(curl -s https://api.github.com/repos/helm/helm/releases/latest \
     | grep tag_name | cut -d '"' -f 4)
@@ -30,13 +40,13 @@ PUBLIC_IP_RANGE=${PERSONAL_PUBLIC_IP}/32
 echo $PUBLIC_IP_RANGE
 
 # Replace variables in the CloudFormation files:
-sed -i "s|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g" ./parameters/eks_vpc_parameters.json
-sed -i "s|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g" ./parameters/bh_infrastructure_parameters.json
-sed -i "s|\\\$BASTION_USERNAME|${BASTION_USERNAME}|g" ./parameters/bh_infrastructure_parameters.json
-sed -i "s|\\\$BASTION_PASSWORD|${BASTION_PASSWORD}|g" ./parameters/bh_infrastructure_parameters.json
-sed -i "s|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g" ./parameters/bh_infrastructure_parameters.json
-sed -i "s|\\\$KUBE_VERSION|${KUBE_VERSION}|g" ./parameters/bh_infrastructure_parameters.json
-sed -i "s|\\\$HELM_VERSION|${HELM_VERSION}|g" ./parameters/bh_infrastructure_parameters.json
+sed -i "s|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g" ./build_script_deployment/parameters/eks_vpc_parameters.json
+sed -i "s|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g" ./build_script_deployment/parameters/bh_infrastructure_parameters.json
+sed -i "s|\\\$BASTION_USERNAME|${BASTION_USERNAME}|g" ./build_script_deployment/parameters/bh_infrastructure_parameters.json
+sed -i "s|\\\$BASTION_PASSWORD|${BASTION_PASSWORD}|g" ./build_script_deployment/parameters/bh_infrastructure_parameters.json
+sed -i "s|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g" ./build_script_deployment/parameters/bh_infrastructure_parameters.json
+sed -i "s|\\\$KUBE_VERSION|${KUBE_VERSION}|g" ./build_script_deployment/parameters/bh_infrastructure_parameters.json
+sed -i "s|\\\$HELM_VERSION|${HELM_VERSION}|g" ./build_script_deployment/parameters/bh_infrastructure_parameters.json
 
 # Get AWS ACCOUNT ID 
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -47,8 +57,8 @@ AMI_ID=$(aws ssm get-parameter \
     --region ${REGION} --query 'Parameter.Value' --output text)
 
 # Replace the variables ($CLUSTER_NAME) in other files with the actual values:
-sed -i "s|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g" ./IaC/eks_infrastructure_deployment.yml
-sed -i "s|\\\$AMI_ID|${AMI_ID}|g" ./IaC/eks_infrastructure_deployment.yml
+sed -i "s|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g" ./build_script_deployment/IaC/eks_infrastructure_deployment.yml
+sed -i "s|\\\$AMI_ID|${AMI_ID}|g" ./build_script_deployment/IaC/eks_infrastructure_deployment.yml
 
 # Test the variables were replaced successfully
 cat ./parameters/bh_infrastructure_parameters.json
@@ -62,7 +72,7 @@ echo "Variable preparation is complete."
 
 # Deploy the BH VPC Stack
 aws cloudformation deploy --stack-name bh-vpc-stack \
-    --template-file ./IaC/bastion_host_vpc_deployment.yml --region $REGION
+    --template-file ./build_script_deployment/IaC/bastion_host_vpc_deployment.yml --region $REGION
 
 # Deploy the EKS VPC Stack
 EKS_VPC_EXISTS=$(aws cloudformation list-stacks \
@@ -73,25 +83,25 @@ if [ $EKS_VPC_EXISTS -gt 0 ]; then
 else
     echo "Creating the eks-vpc-stack";
     aws cloudformation create-stack --stack-name eks-vpc-stack \
-        --template-body file://./IaC/eks_vpc_deployment.yml \
-        --parameters file://./parameters/eks_vpc_parameters.json \
+        --template-body file://./build_script_deployment/IaC/eks_vpc_deployment.yml \
+        --parameters file://./build_script_deployment/parameters/eks_vpc_parameters.json \
         --capabilities CAPABILITY_NAMED_IAM --region $REGION;
 fi
 
 # Deploy the BH IAM stack
 aws cloudformation deploy --stack-name bh-iam-stack \
-    --template-file ./IaC/bastion_host_iam_deployment.yml \
+    --template-file ./build_script_deployment/IaC/bastion_host_iam_deployment.yml \
     --capabilities CAPABILITY_IAM --region $REGION
 # Deploy the EKS IAM stack
 aws cloudformation deploy --stack-name eks-iam-stack \
-    --template-file ./IaC/eks_iam_deployment.yml \
+    --template-file ./build_script_deployment/IaC/eks_iam_deployment.yml \
     --capabilities CAPABILITY_NAMED_IAM --region $REGION
 # Deploy VPC Peering Connection so Bastion Hosts can connect to EKS Cluster
 aws cloudformation deploy --stack-name eks-bh-vpc-peering-stack \
-    --template-file ./IaC/eks_bh_vpc_peering_deployment.yml --region $REGION
+    --template-file ./build_script_deployment/IaC/eks_bh_vpc_peering_deployment.yml --region $REGION
 # Deploy the EKS Infrastructure Stack
 aws cloudformation deploy --stack-name eks-infrastructure-stack \
-    --template-file ./IaC/eks_infrastructure_deployment.yml \
+    --template-file ./build_script_deployment/IaC/eks_infrastructure_deployment.yml \
     --capabilities CAPABILITY_NAMED_IAM --region $REGION
 
 # Deploy the BH Infrastructure Stack
@@ -104,8 +114,8 @@ if [ $BH_INFRA_EXISTS -gt 0 ]; then
 else
     echo "Creating the bh-infrastructure-stack";
     aws cloudformation create-stack --stack-name bh-infrastructure-stack \
-        --template-body file://./IaC/bastion_host_infrastructure_deployment.yml \
-        --parameters file://./parameters/bh_infrastructure_parameters.json \
+        --template-body file://./build_script_deployment/IaC/bastion_host_infrastructure_deployment.yml \
+        --parameters file://./build_script_deployment/parameters/bh_infrastructure_parameters.json \
         --capabilities CAPABILITY_NAMED_IAM --region $REGION
 fi
 
@@ -219,7 +229,7 @@ else
     kubectl create namespace ${KUBE_NAMESPACE}
 fi
 
-kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-deployment.yml
+kubectl apply -f ./build_script_deployment/kubernetes/${KUBE_NAMESPACE}-deployment.yml
 
 # Run some test commands:
 kubectl get all -n ${KUBE_NAMESPACE}
@@ -231,7 +241,7 @@ kubectl get pods -n ${KUBE_NAMESPACE}
 
 if [ $KUBE_LOAD_BALANCER_TYPE == "NLB" ]; then
     # Create the NLB:
-    kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-nlb.yml
+    kubectl apply -f ./build_script_deployment/kubernetes/${KUBE_NAMESPACE}-nlb.yml
 
     # Wait for deployment: TODO - Add an actual while loop to check
     sleep 180
@@ -249,8 +259,8 @@ if [ $KUBE_LOAD_BALANCER_TYPE == "NLB" ]; then
     echo "Deployment Complete!"
 elif [ $KUBE_LOAD_BALANCER_TYPE == "ALB" ]; then
     # Create the ALB:
-    kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-service.yml
-    kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-ingress.yml
+    kubectl apply -f ./build_script_deployment/kubernetes/${KUBE_NAMESPACE}-service.yml
+    kubectl apply -f ./build_script_deployment/kubernetes/${KUBE_NAMESPACE}-ingress.yml
 
     # Wait for deployment: TODO - Add an actual while loop to check
     sleep 180
