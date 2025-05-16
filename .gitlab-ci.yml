@@ -24,23 +24,22 @@ variables:
   BASTION_USERNAME: $BASTION_USERNAME
   BASTION_PASSWORD: $BASTION_PASSWORD
   PERSONAL_PUBLIC_IP: $PERSONAL_PUBLIC_IP 
-  #PUBLIC_IP_RANGE: $PUBLIC_IP_RANGE
   # Possible Future Additions:
-  #ECR_REGISTRY: 
-  #ECR_REPOSITORY:
+  #IMAGE_REGISTRY: 
+  #IMAGE_REPOSITORY:
   #IMAGE_TAG:
 
 
 stages:    # List of stages and their order of execution
-  - deploy_iac_resources
+  - deploy_cloudformation
   - deploy_cluster_connections
   - deploy_aws_lb_controller
   - deploy_applications
   - deploy_load_balancer
 
 
-deploy-cloudformation:
-  stage: deploy_iac_resources 
+deploy-cloudformation-templates:
+  stage: deploy_cloudformation 
   environment: production
   tags:
     - gitlab-runner-docker
@@ -101,7 +100,9 @@ deploy-cloudformation:
 
     # Deploy the EKS VPC Stack
     - |
-      if aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE | grep eks-vpc-stack; then
+      EKS_VPC_EXISTS=$(aws cloudformation list-stacks \
+        --stack-status-filter CREATE_COMPLETE | grep -c eks-vpc-stack)
+      if [ "$EKS_VPC_EXISTS" -gt 0 ]; then
         echo "The eks-vpc-stack already exists. Skipping this step....";
       else
         echo "Creating the eks-vpc-stack";
@@ -133,7 +134,9 @@ deploy-cloudformation:
 
     # Deploy the BH Infrastructure Stack
     - |
-      if aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE | grep bh-infrastructure-stack; then
+      BH_INFRA_EXISTS=$(aws cloudformation list-stacks \
+        --stack-status-filter CREATE_COMPLETE | grep -c bh-infrastructure-stack)
+      if [ "$BH_INFRA_EXISTS" -gt 0 ]; then
         echo "The bh-infrastructure-stack already exists. Skipping this step....";
       else
         echo "Creating the bh-infrastructure-stack";
@@ -182,11 +185,14 @@ deploy-aws-load-balancer-controller:
     - aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
 
     # AWS Load Balancer Controller IAM Policy Name
-    - POLICY_NAME="AWSLoadBalancerControllerIAMPolicyGitlab"
+    - POLICY_NAME="AWSLoadBalancerControllerIAMPolicy"
 
     # Check if AWSLoadBalancerControllerIAMPolicy exists, and if not, create it:
     - |
-      if aws iam list-policies --scope Local --query "Policies[?PolicyName=='${POLICY_NAME}'] | length(@)" --output text | grep -qv '^0$'; then
+      # Check if AWSLoadBalancerControllerIAMPolicy exists, and if not, create it:
+      ALB_CONTROLLER_IAM_POLICY_EXISTS=$(aws iam list-policies --scope Local \
+        --query "Policies[?PolicyName=='${POLICY_NAME}']" | grep -c ${POLICY_NAME})
+      if [ "$ALB_CONTROLLER_IAM_POLICY_EXISTS" -gt 0 ]; then
         echo "The policy ${POLICY_NAME} already exists. Skipping this step..."
       else
         curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.12.0/docs/install/iam_policy.json
@@ -198,12 +204,17 @@ deploy-aws-load-balancer-controller:
 
     # Check if the AWS Load Balancer Controller Service Account exists in kubernetes, and if not, create it:
     - |
-      if kubectl get serviceaccount aws-load-balancer-controller -n kube-system > /dev/null 2>&1; then
+      ALB_CONTROLLER_SA_EXISTS=$(kubectl get serviceaccount \
+        aws-load-balancer-controller -n kube-system 2> /dev/null \
+        | grep -c aws-load-balancer-controller)
+      if [ "$ALB_CONTROLLER_SA_EXISTS" -gt 0 ]; then
         echo "The AWS Load Balancer Controller Service Account already exists. Skipping this step..."
       else
-        eksctl utils associate-iam-oidc-provider --region $REGION --cluster $CLUSTER_NAME --approve
-        eksctl create iamserviceaccount --cluster=$CLUSTER_NAME --namespace=kube-system \
-          --name=aws-load-balancer-controller --role-name=AWSLoadBalancerController \
+        eksctl utils associate-iam-oidc-provider --region $REGION \
+          --cluster $CLUSTER_NAME --approve
+        eksctl create iamserviceaccount --cluster=$CLUSTER_NAME \
+          --namespace=kube-system --name=aws-load-balancer-controller \
+          --role-name=AWSLoadBalancerController \
           --attach-policy-arn=arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${POLICY_NAME} \
           --override-existing-serviceaccounts --region $REGION --approve
       fi
@@ -215,11 +226,15 @@ deploy-aws-load-balancer-controller:
     - aws iam get-role --role-name AWSLoadBalancerController
 
     # Test the ServiceAccount was created:
-    - kubectl get serviceaccount aws-load-balancer-controller --namespace kube-system --output yaml
+    - kubectl get serviceaccount aws-load-balancer-controller \
+      --namespace kube-system --output yaml
 
     # Check if the AWS Load Balancer Controller is deployed, and if not, deploy it:
     - |
-      if kubectl get deployment -n kube-system aws-load-balancer-controller -o jsonpath='{.status.availableReplicas}'; then
+      ALB_CONTROLLER_EXISTS=$(kubectl get deployment aws-load-balancer-controller \
+        -n kube-system -o jsonpath='{.status.availableReplicas}' 2> /dev/null)
+
+      if [ "$ALB_CONTROLLER_EXISTS" -gt 0 ]; then
         echo "The AWS Load Balancer Controller already exists. Skipping this step..."
       else
         helm repo add eks https://aws.github.io/eks-charts
@@ -257,7 +272,9 @@ deploy-application-to-eks:
 
     # If the namespace doesn't exist, then create it:
     - |
-      if kubectl get namespace ${KUBE_NAMESPACE}  > /dev/null 2>&1; then
+      NAMESPACE_EXISTS=$(kubectl get namespace web-app 2> /dev/null | grep -c web-app)
+
+      if [ "$NAMESPACE_EXISTS" -gt 0 ]; then
         echo "Namespace ${KUBE_NAMESPACE} exists.";
       else
         echo "Creating ${KUBE_NAMESPACE} namespace";
