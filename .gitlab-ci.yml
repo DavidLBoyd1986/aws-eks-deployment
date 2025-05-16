@@ -100,8 +100,9 @@ deploy-cloudformation-templates:
 
     # Deploy the EKS VPC Stack
     - EKS_VPC_EXISTS=$(aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE | grep -c eks-vpc-stack)
+    - echo "TEST"
     - |
-      if [ "$EKS_VPC_EXISTS" -gt 0 ]; then
+      if [ $EKS_VPC_EXISTS -gt 0 ]; then
         echo "The eks-vpc-stack already exists. Skipping this step....";
       else
         echo "Creating the eks-vpc-stack";
