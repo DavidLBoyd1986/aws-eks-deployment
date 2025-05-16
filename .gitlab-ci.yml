@@ -188,11 +188,11 @@ deploy-aws-load-balancer-controller:
 
     # Check if AWSLoadBalancerControllerIAMPolicy exists, and if not, create it:
     - |
-      if aws iam list-policies --scope Local --query 'Policies[].PolicyName' --output text | grep -o 'AWSLoadBalancerControllerIAMPolicy'; then
+      if aws iam list-policies --scope Local --query 'Policies[].PolicyName' --output text | grep -o 'AWSLoadBalancerControllerIAMPolicyGitLab'; then
         echo "The AWSLoadBalancerControllerIAMPolicy already exists. Skipping this step..."
       else
         curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.12.0/docs/install/iam_policy.json
-        aws iam create-policy --policy-name AWSLoadBalancerControllerIAMPolicy --policy-document file://iam_policy.json
+        aws iam create-policy --policy-name AWSLoadBalancerControllerIAMPolicyGitlab --policy-document file://iam_policy.json
       fi
 
     # Check if the AWS Load Balancer Controller Service Account exists in kubernetes, and if not, create it:
