@@ -24,7 +24,7 @@ variables:
   BASTION_USERNAME: $BASTION_USERNAME
   BASTION_PASSWORD: $BASTION_PASSWORD
   PERSONAL_PUBLIC_IP: $PERSONAL_PUBLIC_IP 
-  PUBLIC_IP_RANGE: $PUBLIC_IP_RANGE
+  #PUBLIC_IP_RANGE: $PUBLIC_IP_RANGE
   # Possible Future Additions:
   #ECR_REGISTRY: 
   #ECR_REPOSITORY:
@@ -32,28 +32,33 @@ variables:
 
 
 stages:    # List of stages and their order of execution
-  - deploy_preparation
   - deploy_iac_resources
   - deploy_cluster_connections
   - deploy_aws_lb_controller
   - deploy_applications
   - deploy_load_balancer
 
-deploy-preparation:
-  stage: deploy_preparation 
+
+deploy-cloudformation:
+  stage: deploy_iac_resources 
   environment: production
   tags:
     - gitlab-runner-docker
   image:
     name: davidboyd1986/aws-kube:latest
   script:
+
+    #--------------------------
+    # Replace/Prepare variables
+    #--------------------------
+
     # Get newest version of HELM to be installed in the Linux Bastion Host:
     - |
       HELM_VERSION=$(curl -s https://api.github.com/repos/helm/helm/releases/latest \
         | grep tag_name | cut -d '"' -f 4)
     - echo $HELM_VERSION
 
-    #- PUBLIC_IP_RANGE=${PERSONAL_PUBLIC_IP}/32
+    - PUBLIC_IP_RANGE=${PERSONAL_PUBLIC_IP}/32
     - echo $PUBLIC_IP_RANGE
 
     # Replace variables in the CloudFormation files:
@@ -89,15 +94,10 @@ deploy-preparation:
 
     - echo "Variable preparation is complete."
 
+    #------------------------------------
+    # Deploying the CloudFormation Stacks
+    #------------------------------------
 
-deploy-cloud-formation-stacks:
-  stage: deploy_iac_resources
-  environment: production
-  tags:
-    - gitlab-runner-docker
-  image:
-    name: davidboyd1986/aws-kube:latest
-  script:
     # Deploy the BH VPC Stack
     - |
       aws cloudformation deploy --stack-name bh-vpc-stack \
