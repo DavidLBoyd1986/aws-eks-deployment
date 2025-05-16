@@ -99,7 +99,8 @@ deploy-cloudformation-templates:
         --template-file ./IaC/bastion_host_vpc_deployment.yml --region $REGION
 
     # Deploy the EKS VPC Stack
-    - EKS_VPC_EXISTS=$(aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE --region $REGION | grep -c eks-vpc-stack)
+    - aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE --region $REGION 2> /dev/null | grep -c eks-vpc-stack
+    - EKS_VPC_EXISTS=$(aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE --region $REGION 2> /dev/null | grep -c eks-vpc-stack)
     - echo "TEST"
     - |
       if [ $EKS_VPC_EXISTS -gt 0 ]; then
