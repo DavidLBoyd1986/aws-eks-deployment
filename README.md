@@ -1,50 +1,97 @@
 <h1>EKS Cluster and Bastion Host Deployment</h1>
 
-This repository contains CloudFormation templates to launch an EKS Cluster in its own VPC, Bastion Hosts in a separate VPC, and a VPC Peering Connection to connect the two VPCS. It also contains the Kubernetes Resource yaml files to deploy an application (WebGoat) to the Cluster, and create an external connection to the application. Lastly, it contains multiple deployment methods: shell script, Jenkinsfile, and gitlab.ci file.
+This repository contains CloudFormation templates to launch an EKS Cluster in its own VPC, Bastion Hosts in a separate VPC, and a VPC Peering Connection to connect the two VPCS. It also contains the Kubernetes Resource yaml files to deploy an application (WebGoat) to the Cluster, and create an external connection to the application using an AWS Load Balancer Controller that can be used to automatically create an AWS NLB or AWS ALB depending on the Kubernetes resources that are created. Lastly, it contains multiple deployment methods: shell script, Jenkinsfile, and gitlab.ci file.
 
-Only the Jenkinsfile is finished to fully deploy everything.
+For external connections to the application on EKS, the deployment methods deploy an AWS Load Balancer Controller to the EKS Cluster so NLBs and ALBs will automatically be created when a Kubernetes Service/Ingress is created for an application. These AWS Load Balancers will automatically allow/route all public access to the applications/deployments they point to on EKS.
 
-The deployment methods deploy an AWS Load Balancer Controller to the EKS Cluster so NLBs and ALBs will automatically be created when a Kubernetes Service/Ingress is created for an application.
+<b>IMPORTANT - So, the applications on the Public Cluster will always be 100% publically accessible from any IP. All the discussion of limiting Public Access to the Cluster is in regards to accessing the Cluster API server endpoint (i.e. connecting to the cluster with "kubectl", "helm", etc...) See the section "Limiting Public Cluster traffic" below for a longer explanation.</b>
+
+Cluster Api Server Endpoints explained - https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html
+
 
 <h2>Public and Private Clusters</h2>
 
-The current cluster is deployed as a Public Cluster; however, the parameters.json files under ./parameters have a "personalPublicIP" parameter, which if defined, will limit traffic to the cluster to the defined personalPublicIp.
+The main branch deploys a Public Cluster, as does the 'public-cluster' branch, where the Cluster API Endpoint is publically accessible, but still limits access based on IAM and EKS RBAC authentication. The 'private-cluster' branch creates a private EKS Cluster where the Cluster API Endpoint is only accessible from within the EKC VPC, or the BH VPC which has a peering connection. Both the Public and Private Clusters can allow full public access to applications based on the Load Balancers that route to them.
 
-Limiting incoming traffic to the Cluster, to only the personalPublicIp, is only in regards to accessing the cluster/nodes directly; i.e. running kubectl
+I plan to make a fully private cluster in the future, if it is possible.
 
-Once the Load Balancer is deployed and functioning, all Public HTTP(s) traffic will be allowed to the port defined for the Load Balancer/Application. However, that Public HTTP traffic will NOT be able to access the Cluster itself.
+NOTE - The "private-cluster" branch is not finished!
 
-The Bastion Hosts will be able to access the Cluster, and come configured with kubectl, and having authenticated access to the Cluster.
+<h3>Public Clusters</h3>
 
-The personalPublicIp is only for the Deployment methods to run kubectl commands to setup and configure the Cluster. The EKS NodeGroup Security Group rules allowing access from the personalPublicIp can be removed after the deployment is complete, and all cluster interactions can be performed from the Linux Bastion Host using kubectl.
+NOTE - I am going to refactor the PUBLIC_IP_RANGE names and functionality to make sense.
+
+The Public Cluster Endpoint access is currently limited to a defined "personalPublicIp" that is in the parameters.json files under "./parameters" and currently has a value of "$PUBLIC_IP_RANGE". Whatever IP is saved as "$PUBLIC_IP_RANGE" will be given a /32 subnet mask, and it will limit public traffic to the Cluster API Endpoint to only the defined personalPublicIp.
+
+<h4>Creating a fully public cluster:</h4>
+
+To make the accessing Public Cluster API Endpoint on 'main' and 'public-cluster' branches fully public, all you do is remove the "personalPublicIp" from both parameters.json files.
+
+    i.e. remove the below from "bh_infrastructure_parameters.json" and "parametes/eks_vpc_parameters.json":
+    
+    `
+    {
+      "ParameterKey": "personalPublicIp",
+      "ParameterValue": "$PUBLIC_IP_RANGE"
+    },
+    `
+
+Removing those parameters will cause the CloudFormation templates to give the SecurityGroups a rule that allows "0.0.0.0/0". Access will still be limited based on IAM and/or RBAC permissions.
+
+<h4>Limiting Cluster Endpoint traffic</h4>
+
+The Bastion Hosts will be able to access the Cluster, as the "BastionHostInstanceRole" is trusted by the Cluster during deployment, and the Bastion Hosts come with kubectl, helm, and eksctl installed; however, you will have to run the command below to configure kubectl to authenticate to the cluster.
+
+    `aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME`
+
+For Public Clusters, the personalPublicIp parameter is only for the Deployment methods, that are deploying everything, to have access to run kubectl commands to setup and configure the Cluster. After the deployment is complete, the EKS NodeGroup Security Group rules allowing access from the personalPublicIp can be removed, and all future cluster interactions can be performed from the Linux Bastion Host using kubectl.
 
 The personalPublicIP is defined as a range, so to limit it to one IP use this format:
 
     1.2.3.4/32
 
-To make the cluster fully publicly accessible, remove the personalPublicIp parameters from the parameters.json files, and the personalPublicIp variable will default to 0.0.0.0/0. THIS IS NOT RECOMMENDED.
+To make the Cluster API Endpoint fully publicly accessible, remove the personalPublicIp parameters from the parameters.json files, and the personalPublicIp variable will default to 0.0.0.0/0. THIS IS NOT RECOMMENDED.
 
 A completely private EKS Cluster deployment will be created as a separate branch in the future.
 
-<h2>CloudFormation Deployment</h2>
+<h2>What is Deployed</h2>
 
-Generates a VPC with Bastion Hosts (Linux and Windows), and a VPC running a Private EKS Cluster.
+<h3>The CloudFormation Templates deploy:</h3>
+- EKS VPC - The EKS Cluster is deployed in its own VPC
+- Bastion Host VPC - Two Bastion hosts are deployed in their own VPC
+- VPC Peering Connection - The EKS and Bastion Hosts are fully connected via a VPC Peering Connection
+- BH IAM Resources - Role, policies and Instance Profile are created for the Bastion Hosts.
+- EKS IAM Resources - Two Roles are created: EKS Cluster Role and EKS Node Role
+- BH Infrastructure - Two ec2 instances are deployed as Bastion Hosts (Linux and Windows)
+- EKS Infrastructure - The EKS Cluster and Node Group are created with 1 Running Node
 
-The Bastion Host VPC will have a full VPC Peering connection with the EKS Cluster's VPC.
+<h3>The Kubernetes Resources deployed:</h3>
+- AWS Load Balancer Controller - This is used to automatically create AWS Load Balancers based on created Kubernetes resources that allow/route external access to the cluster: (i.e. Services and Ingress). This will create an IAM Policy and Role to be used by the EKS Cluster, specifically used by a ServiceAccount inside the Cluster.
 
-I'm working on deploying this using Jenkins, hence the Jenkinsfile. It can be deployed using the build_script.sh as well. I plan on adding a gitlab pipeline deployment as well.
+AWS Load Balancer Controller Docs:
+- https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html
 
-This guide will only explain the build_script.sh deployment, as the Jenkins and Gitlab deployments are too complicated to explain here.
+- Kubernetes Deployment - Deploys WebGoat web application (used for pentesting)
+- Kubernetes Services - Deploys Kubernetes services based on if you selected to deploy an AWS NLB/ALB.
 
-I attempted to keep this fully private at first, but have kinks to work out, so I'm changing it to a public cluster, and will change it to be private later. The problem with private deployment is I can't deploy kubernetes apps using the pipelines since the private Cluster can only be accessed using the bastion hosts. I will eventually make two eks deployments, one public and one private.
+     - NLB Load Balancer - Deploys a kubernetes LoadBalancer Service that will create an NLB
+     - ALB Load Balancer - Deploys a kubernetes ClusterIP Service and an Ingress that will create an ALB
 
-<h3>Prerequisites</h3>
+<h3>Deployment Methods:</h3>
 
-1. The aws-cli is installed and configured on the host running the build_script.sh
+- .gitlab-ci.yml - A Gitlab pipeline that will deploy everything. Only requires gitlab/gitlab-runners have met the pre-requisites listed below.
+
+- Jenkinsfile - A Jenkins pipeline that will deploy everything. Only requires jenkins-master/worker-nodes have met the pre-requisites listed below.
+
+- build_script.sh - A shell script that will deploy everything. Only requires the host running the script has met the pre-requisites listed below.
+
+<h2>Prerequisites</h2>
+
+1. The aws-cli is installed and configured:
     a. Install aws-cli
     b. Configure aws-cli with access key or IAM Role
 
-2. Create an ssh-keypair
+2. An ssh-keypair has been created to allow access to the Bastion Hosts
     a. ssh-keygen -t rsa -m PEM -b 2048 -f ~/.ssh/aws_bh_id_rsa
         - You can leave off the -f argument to save it here ~/.ssh/id_rsa
         - This could overwrite an existing ssh-key for the user you're using.
@@ -59,10 +106,11 @@ I attempted to keep this fully private at first, but have kinks to work out, so 
                  - 'userName' added can log into windows instance with 'userPass' configured.
                  - Logging into windows with configured user and password isn't working right now. 
 
-3. Required Parameters need added in parameters.json:
-    - personalPublicIP
-    - userName
-    - userPass
+3. Required Parameters need configured as CICD or Environment Variables:
+    - PUBLIC_IP_RANGE
+    - BASTION_USERNAME
+    - BASTION_PASSWORD
+
+4. Other Parameters that can be added directly into Parameters file:
     - bastionHostPublicKey
-    - EKSPublicKey - This should be a separate key to access EKS Nodes from Bastion Hosts.
-                   - Requires manually copying the private key to bastion hosts.
+    - EKSPublicKey
