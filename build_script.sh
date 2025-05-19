@@ -9,6 +9,7 @@ KUBE_NAMESPACE=web-app
 KUBE_LOAD_BALANCER_TYPE=NLB # Must be (NLB || ALB)
 REGION=us-east-1
 # Required CICD Variables:
+    # ex: export PERSONAL_PUBLIC_IP="11.22.33.44"
 BASTION_USERNAME=$BASTION_USERNAME
 BASTION_PASSWORD=$BASTION_PASSWORD
 PERSONAL_PUBLIC_IP=$PERSONAL_PUBLIC_IP 
@@ -47,6 +48,12 @@ sed -i "s|\\\$BASTION_PASSWORD|${BASTION_PASSWORD}|g" ./build_script_deployment/
 sed -i "s|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g" ./build_script_deployment/parameters/bh_infrastructure_parameters.json
 sed -i "s|\\\$KUBE_VERSION|${KUBE_VERSION}|g" ./build_script_deployment/parameters/bh_infrastructure_parameters.json
 sed -i "s|\\\$HELM_VERSION|${HELM_VERSION}|g" ./build_script_deployment/parameters/bh_infrastructure_parameters.json
+
+# Replace variables in the Kubernetes files:
+sed -i "s|\\\$KUBE_NAMESPACE|${KUBE_NAMESPACE}|g" ./build_script_deployment/kubernetes/web-app-deployment.yml
+sed -i "s|\\\$KUBE_NAMESPACE|${KUBE_NAMESPACE}|g" ./build_script_deployment/kubernetes/web-app-ingress.yml
+sed -i "s|\\\$KUBE_NAMESPACE|${KUBE_NAMESPACE}|g" ./build_script_deployment/kubernetes/web-app-nlb.yml
+sed -i "s|\\\$KUBE_NAMESPACE|${KUBE_NAMESPACE}|g" ./build_script_deployment/kubernetes/web-app-service.yml
 
 # Get AWS ACCOUNT ID 
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -195,6 +202,8 @@ kubectl get serviceaccount aws-load-balancer-controller --namespace kube-system 
 # Check if the AWS Load Balancer Controller is deployed, and if not, deploy it:
 ALB_CONTROLLER_EXISTS=$(kubectl get deployment aws-load-balancer-controller \
     -n kube-system -o jsonpath='{.status.availableReplicas}' 2> /dev/null)
+
+echo $ALB_CONTROLLER_EXISTS
 
 if [ $ALB_CONTROLLER_EXISTS -gt 0 ]; then
     echo "The AWS Load Balancer Controller already exists. Skipping this step..."
