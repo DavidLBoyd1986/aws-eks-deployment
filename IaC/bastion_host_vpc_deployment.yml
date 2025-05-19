@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Amazon EKS VPC for Web App Testing - Private and Public subnets'
+Description: 'Bastion Host VPC for connecting to and working with EKS VPC'
 
 Parameters:
 

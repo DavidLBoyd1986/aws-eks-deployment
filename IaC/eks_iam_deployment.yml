@@ -1,10 +1,10 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'EKS Public Cluster IAM Resources.'
+Description: 'EKS Cluster IAM Resources.'
 
 Resources:
 
-  EKSPublicClusterRole:
+  EKSClusterRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -19,7 +19,7 @@ Resources:
       ManagedPolicyArns: 
         - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
         - arn:aws:iam::aws:policy/AmazonEKSServicePolicy
-      RoleName: EKSPublicClusterRole
+      RoleName: EKSClusterRole
       Tags: 
       - Key: Deployment
         Value: IaC
@@ -28,7 +28,7 @@ Resources:
       - Key: CanDelete
         Value: True
   
-  EKSPublicClusterNodeRole:
+  EKSClusterNodeRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -44,7 +44,7 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
         - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
         - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
-      RoleName: EKSPublicClusterNodeRole
+      RoleName: EKSClusterNodeRole
       Tags: 
       - Key: Deployment
         Value: IaC
@@ -54,14 +54,14 @@ Resources:
         Value: True
 
 Outputs:
-  EKSPublicClusterRole:
-    Description: "The EKS Publice Cluster IAM Role"
-    Value: !GetAtt  EKSPublicClusterRole.Arn
+  EKSClusterRole:
+    Description: "The EKS Cluster IAM Role"
+    Value: !GetAtt  EKSClusterRole.Arn
     Export:
-      Name: EKSPublicClusterRoleARN
+      Name: EKSClusterRoleARN
 
-  EKSPublicClusterNodeRole:
-    Description: "The EKS Public Cluster Node IAM Role"
-    Value: !GetAtt EKSPublicClusterNodeRole.Arn
+  EKSClusterNodeRole:
+    Description: "The EKS Cluster Node IAM Role"
+    Value: !GetAtt EKSClusterNodeRole.Arn
     Export:
-      Name: EKSPublicClusterNodeRoleARN
+      Name: EKSClusterNodeRoleARN
