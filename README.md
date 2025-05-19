@@ -57,6 +57,7 @@ A completely private EKS Cluster deployment will be created as a separate branch
 <h2>What is Deployed</h2>
 
 <h3>The CloudFormation Templates deploy:</h3>
+
 - EKS VPC - The EKS Cluster is deployed in its own VPC
 - Bastion Host VPC - Two Bastion hosts are deployed in their own VPC
 - VPC Peering Connection - The EKS and Bastion Hosts are fully connected via a VPC Peering Connection
@@ -66,6 +67,7 @@ A completely private EKS Cluster deployment will be created as a separate branch
 - EKS Infrastructure - The EKS Cluster and Node Group are created with 1 Running Node
 
 <h3>The Kubernetes Resources deployed:</h3>
+
 - AWS Load Balancer Controller - This is used to automatically create AWS Load Balancers based on created Kubernetes resources that allow/route external access to the cluster: (i.e. Services and Ingress). This will create an IAM Policy and Role to be used by the EKS Cluster, specifically used by a ServiceAccount inside the Cluster.
 
 AWS Load Balancer Controller Docs:
@@ -88,15 +90,15 @@ AWS Load Balancer Controller Docs:
 <h2>Prerequisites</h2>
 
 1. The aws-cli is installed and configured:
-    a. Install aws-cli
-    b. Configure aws-cli with access key or IAM Role
+    1. Install aws-cli
+    2. Configure aws-cli with access key or IAM Role
 
 2. An ssh-keypair has been created to allow access to the Bastion Hosts
-    a. ssh-keygen -t rsa -m PEM -b 2048 -f ~/.ssh/aws_bh_id_rsa
+    1. ssh-keygen -t rsa -m PEM -b 2048 -f ~/.ssh/aws_bh_id_rsa
         - You can leave off the -f argument to save it here ~/.ssh/id_rsa
         - This could overwrite an existing ssh-key for the user you're using.
-    b. Look in '~/.ssh/' and copy the contents of 'id_rsa.pub' 
-    c. Paste this in '/IaC_Templates/bastion_host_infrastructure_deployment.yml' under parameters for 'bastionHostPublicKey'
+    2. Look in '~/.ssh/' and copy the contents of 'id_rsa.pub' 
+    3. Paste this in '/IaC_Templates/bastion_host_infrastructure_deployment.yml' under parameters for 'bastionHostPublicKey'
 
     LINUX NOTE - This key is also configured for the 'userName' configured under parameters.
                - So, you can log in with this key for Linux as 'ec2-user' or the configured user.
