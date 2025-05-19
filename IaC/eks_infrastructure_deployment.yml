@@ -47,7 +47,7 @@ Resources:
         SecurityGroupIds:
           - !ImportValue EKSPublicCluster-ControlPlaneSecurityGroup
           - !ImportValue EKSPublicCluster-WorkerNodeSecurityGroup
-      RoleArn: !ImportValue EKSPublicClusterRoleARN
+      RoleArn: !ImportValue EKSClusterRoleARN
       Tags:
       - Key: Deployment
         Value: IaC 
@@ -65,7 +65,7 @@ Resources:
       InstanceTypes: 
         - t3.large # This can't be a t2.micro. If you see a can't assign IP Error for pods, the instance is too small
       NodegroupName: !Ref NodeGroupName
-      NodeRole: !ImportValue EKSPublicClusterNodeRoleARN
+      NodeRole: !ImportValue EKSClusterNodeRoleARN
       ScalingConfig:
         DesiredSize:  !Ref DesiredCapacity
         MaxSize:  !Ref MaxSize
