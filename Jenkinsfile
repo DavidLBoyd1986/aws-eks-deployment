@@ -328,8 +328,8 @@ pipeline {
                             sh "kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-nlb.yml"
 
                             // Sleep to wait for deployment - Pipeline will fail if you don't wait
-                            echo "Sleeping for 30 seconds..."
-                            sleep time: 30, unit: 'SECONDS'
+                            echo "Sleeping for 180 seconds..."
+                            sleep time: 180, unit: 'SECONDS'
                             // Loop to wait for deployment
                             timeout(time: 5, unit: 'MINUTES') {
                                 waitUntil {
@@ -365,8 +365,8 @@ pipeline {
                             sh "kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-ingress.yml"
 
                             // Sleep to wait for deployment - Pipeline will fail if you don't wait
-                            echo "Sleeping for 30 seconds..."
-                            sleep time: 30, unit: 'SECONDS'
+                            echo "Sleeping for 180 seconds..."
+                            sleep time: 180, unit: 'SECONDS'
                             // Loop to wait for deployment
                             timeout(time: 5, unit: 'MINUTES') {
                                 waitUntil {
