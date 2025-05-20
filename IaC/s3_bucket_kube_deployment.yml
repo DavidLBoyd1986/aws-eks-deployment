@@ -10,6 +10,5 @@ Parameters:
 
 Resources:
   Type: AWS::S3::Bucket
-  DeletionPolicy: Retain
   Parameters:
-    "BucketName": $MyBucketName
+    BucketName: $MyBucketName
