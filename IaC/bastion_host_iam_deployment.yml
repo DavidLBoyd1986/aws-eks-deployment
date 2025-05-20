@@ -20,13 +20,16 @@ Resources:
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
+              # Allow EC2 operations
+              - Effect: Allow
+                Action:
+                  - ec2:*
+                Resource: "*"
+              
               # Allow EKS operations
               - Effect: Allow
                 Action:
-                  - eks:DescribeCluster
-                  - eks:DescribeClusterVersions
-                  - eks:ListClusters
-                  - eks:AccessKubernetesApi
+                  - eks:*
                 Resource: "*"
               
               # Allow access to ECR
@@ -63,14 +66,25 @@ Resources:
                   - iam:GetRole
                   - iam:TagRole
                   - iam:AttachRolePolicy
+                  - iam:CreateOpenIDConnectProvider
+                  - iam:AddClientIDToOpenIDConnectProvider
+                  - iam:RemoveClientIDFromOpenIDConnectProvider
+                  - iam:PassRole
+                  - iam:UpdateRole
+                  - iam:UpdateRoleDescription
+                  - iam:CreatePolicy
+                  - iam:CreatePolicyVersion
+                  - iam:UpdateAssumeRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:TagPolicy
+                  - iam:TagOpenIDConnectProvider
+                  - iam:ListAttachedRolePolicies
                 Resource: "*"
 
               # Allow access to CloudFormation Stacks
               - Effect: "Allow"
                 Action:
-                  - cloudformation:ListStacks
-                  - cloudformation:DescribeStacks
-                  - cloudformation:CreateStack
+                  - cloudformation:*
                 Resource: "*"
 
   BastionHostInstanceProfile:
