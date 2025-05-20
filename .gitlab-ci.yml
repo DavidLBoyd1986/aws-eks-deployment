@@ -120,6 +120,9 @@ deploy-cloudformation-templates:
           --capabilities CAPABILITY_NAMED_IAM --region $REGION;
       fi
 
+    # TODO - Sleep or add logic to wait for bucket to be created
+    - sleep 30
+
     # Upload the tar file to the S3 bucket
     - aws s3 cp eks_deploy_script.tar s3://${BUCKET_NAME}
 
