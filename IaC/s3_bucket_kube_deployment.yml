@@ -12,4 +12,4 @@ Resources:
   EKSDeployScriptBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: $MyBucketName
+      BucketName: !Sub $MyBucketName
