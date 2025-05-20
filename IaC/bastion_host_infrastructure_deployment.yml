@@ -128,9 +128,10 @@ Resources:
             sudo mv /tmp/eksctl /usr/local/bin
 
             # Download and run the eks_deployment_script from the S3 bucket
-            aws s3 cp s3://${MyBucketName} /tmp/eks_deploy_script.sh
-            chmod +x /tmp/eks_deploy_script.sh
-            /tmp/eks_deploy_script.sh
+            aws s3 cp s3://${MyBucketName}/eks_deploy_script.tar /tmp/eks_deploy_script.tar
+            tar -xvf /tmp/eks_deploy_script.tar -C /tmp/
+            chmod +x /tmp/build_script_deployment/eks_deploy_script.sh
+            /tmp/build_script_deployment/eks_deploy_script.sh
 
   windowsBastionHost:
     Type: AWS::EC2::Instance

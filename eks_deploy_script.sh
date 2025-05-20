@@ -14,10 +14,20 @@ REGION=us-east-1
 # Deploying the Cluster and connections
 #--------------------------------------
 
+# IMPORTANT - Run script out of /tmp!!!
+# Hard-coded to run the script out of /tmp since it is \
+#   designed to be ran automatically after being copied to the host.
+#
+# i.e.:
+#       tar -xvf /tmp/eks_deploy_script.tar -C /tmp/
+#       chmod _x /tmp/build_script_deployment/eks_deploy_script.sh
+#       /tmp/build_script_deployment/eks_deploy_script.sh
+#
+# Could easily change this by updating /tmp.
 
 # Deploy the EKS Infrastructure Stack
 aws cloudformation deploy --stack-name eks-infrastructure-stack \
-    --template-file ./build_script_deployment/IaC/eks_infrastructure_deployment.yml \
+    --template-file /tmp/build_script_deployment/IaC/eks_infrastructure_deployment.yml \
     --capabilities CAPABILITY_NAMED_IAM --region $REGION
 
 # Configure kubectl to connect to the Cluster
@@ -114,7 +124,7 @@ else
     kubectl create namespace ${KUBE_NAMESPACE}
 fi
 
-kubectl apply -f ./build_script_deployment/kubernetes/${KUBE_NAMESPACE}-deployment.yml
+kubectl apply -f /tmp/build_script_deployment/kubernetes/${KUBE_NAMESPACE}-deployment.yml
 
 # Run some test commands:
 kubectl get all -n ${KUBE_NAMESPACE}
@@ -126,7 +136,7 @@ kubectl get pods -n ${KUBE_NAMESPACE}
 
 if [ $KUBE_LOAD_BALANCER_TYPE == "NLB" ]; then
     # Create the NLB:
-    kubectl apply -f ./build_script_deployment/kubernetes/${KUBE_NAMESPACE}-nlb.yml
+    kubectl apply -f /tmp/build_script_deployment/kubernetes/${KUBE_NAMESPACE}-nlb.yml
 
     # Wait for deployment: TODO - Add an actual while loop to check
     sleep 180
@@ -144,8 +154,8 @@ if [ $KUBE_LOAD_BALANCER_TYPE == "NLB" ]; then
     echo "Deployment Complete!"
 elif [ $KUBE_LOAD_BALANCER_TYPE == "ALB" ]; then
     # Create the ALB:
-    kubectl apply -f ./build_script_deployment/kubernetes/${KUBE_NAMESPACE}-service.yml
-    kubectl apply -f ./build_script_deployment/kubernetes/${KUBE_NAMESPACE}-ingress.yml
+    kubectl apply -f /tmp/build_script_deployment/kubernetes/${KUBE_NAMESPACE}-service.yml
+    kubectl apply -f /tmp/build_script_deployment/kubernetes/${KUBE_NAMESPACE}-ingress.yml
 
     # Wait for deployment: TODO - Add an actual while loop to check
     sleep 180
