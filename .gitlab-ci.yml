@@ -166,7 +166,7 @@ deploy-cloudformation-templates:
       TRANSIT_GATEWAY_ID=$(aws ec2 describe-transit-gateways \
         --region = $REGION \
         --filters "Name=description",Values=BH-EKS-VPC-TransitGateway" \
-        --query ''TransitGateways[*].TransitGatewayId' \
+        --query 'TransitGateways[*].TransitGatewayId' \
         --output text)
 
     # Get Bastion Host VPC ID, and update it's route tables:
