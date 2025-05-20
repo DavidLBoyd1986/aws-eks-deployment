@@ -108,7 +108,8 @@ deploy-cloudformation-templates:
     - |
       S3_BUCKET_EXISTS=$(aws cloudformation list-stacks \
         --stack-status-filter CREATE_COMPLETE --region $REGION \
-        2> /dev/null | grep -c s3-bucket-stack || echo 0)
+        2> /dev/null | grep -c s3-bucket-stack)
+      S3_BUCKET_EXISTS=${S3_BUCKET_EXISTS:-0}
 
     - |
       if [ $S3_BUCKET_EXISTS -gt 0 ]; then
