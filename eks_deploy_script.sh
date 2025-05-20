@@ -25,18 +25,6 @@ kubectl version --client
 aws sts get-caller-identity
 aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
 
-# Allow Bastion Host's IAM Role to access the Cluster
-BASTION_HOST_ROLE_ARN=$(aws cloudformation describe-stacks \
-    --stack-name bh-iam-stack --region $REGION \
-    --query "Stacks[0].Outputs[?OutputKey=='BastionHostRoleArn'].OutputValue" \
-    --output text)
-
-echo $BASTION_HOST_ROLE_ARN
-
-eksctl create iamidentitymapping --cluster $CLUSTER_NAME --region $REGION \
-    --arn $BASTION_HOST_ROLE_ARN --username system:node:{{EC2PrivateDNSName}} \
-    --group system:masters
-
 #-------------------------------------------
 # Deploying the AWS Load Balancer Controller 
 #-------------------------------------------
