@@ -10,5 +10,5 @@ Parameters:
 
 Resources:
   Type: AWS::S3::Bucket
-  Parameters:
+  Properties:
     BucketName: $MyBucketName

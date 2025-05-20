@@ -93,6 +93,7 @@ deploy-cloudformation-templates:
     - tar -cvf eks_deploy_script.tar build_script_deployment
 
     # Test the variables were replaced successfully
+    - cat ./parameters/s3_bucket_parameters.json
     - cat ./parameters/bh_infrastructure_parameters.json
     - cat ./parameters/eks_vpc_parameters.json
 
