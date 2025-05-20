@@ -425,61 +425,61 @@ Outputs:
     Value:
       Ref: PublicSubnet01
     Export:
-      Name: EKSPublicCluster-PublicSubnetOne
+      Name: EKSPrivateCluster-PublicSubnetOne
 
   PublicSubnet02:
     Description: The subnet ID for public subnet 02
     Value:
       Ref: PublicSubnet02
     Export:
-      Name: EKSPublicCluster-PublicSubnetTwo
+      Name: EKSPrivateCluster-PublicSubnetTwo
 
   PrivateSubnet01:
     Description: The subnet ID for private subnet 01
     Value:
       Ref: PrivateSubnet01
     Export:
-      Name: EKSPublicCluster-PrivateSubnetOne
+      Name: EKSPrivateCluster-PrivateSubnetOne
 
   PrivateSubnet02:
     Description: The subnet ID for private subnet 02
     Value:
       Ref: PrivateSubnet02
     Export:
-      Name: EKSPublicCluster-PrivateSubnetTwo
+      Name: EKSPrivateCluster-PrivateSubnetTwo
 
   ControlPlaneSecurityGroup:
     Description: Security group for the cluster control plane communication with worker nodes
     Value: !Ref ControlPlaneSecurityGroup
     Export:
-      Name: EKSPublicCluster-ControlPlaneSecurityGroup
+      Name: EKSPrivateCluster-ControlPlaneSecurityGroup
 
   WorkerNodeSecurityGroup:
     Description: Security group for the cluster worker nodes
     Value: !Ref WorkerNodeSecurityGroup
     Export:
-      Name: EKSPublicCluster-WorkerNodeSecurityGroup
+      Name: EKSPrivateCluster-WorkerNodeSecurityGroup
 
   EksVpcId:
     Description: The VPC Id
     Value: !Ref VPC
     Export:
-      Name: EKSPublicCluster-VpcId
+      Name: EKSPrivateCluster-VpcId
  
   VpcBlock:
     Description: CIDR for VPC Block
     Value: !GetAtt VPC.CidrBlock
     Export:
-      Name: EKSPublicCluster-VpcCidrBlock
+      Name: EKSPrivateCluster-VpcCidrBlock
 
   PublicRouteTable01:
     Description: The Public Route Table for public subnet 1 in this VPC
     Value: !Ref PublicRouteTable01
     Export:
-      Name: EKSPublicCluster-VpcPublicRouteTableOne
+      Name: EKSPrivateCluster-VpcPublicRouteTableOne
 
   PublicRouteTable02:
     Description: The Public Route Table for public subnet 2 in this VPC
     Value: !Ref PublicRouteTable02
     Export:
-      Name: EKSPublicCluster-VpcPublicRouteTableTwo
+      Name: EKSPrivateCluster-VpcPublicRouteTableTwo

@@ -1,0 +1,47 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Create a Transit Gateway and connect two VPCs.
+
+Resources:
+
+  TransitGateway:
+    Type: AWS::EC2::TransitGateway
+    Properties:
+      Description: BH-EKS-VPC-TransitGateway
+      AmazonSideAsn: 64512
+      AutoAcceptSharedAttachments: enable
+      DefaultRouteTableAssociation: enable
+      DefaultRouteTablePropagation: enable
+      TransitGatewayCidrBlocks:
+        - 10.255.0.0/16
+      Tags:
+        - Key: ForVPCs
+          Value: BH-EKS
+        - Key: Deployment
+          Value: CloudFormation
+        - Key: CostMoney
+          Value: true
+        - Key: CanDelete
+          Value: true
+
+  TGWAttachmentVPC1:
+    Type: AWS::EC2::TransitGatewayVpcAttachment
+    Properties:
+      TransitGatewayId: !Ref TransitGateway
+      VpcId: !ImportValue BHVpcId
+      SubnetIds:
+        - !ImportValue BHPublicSubnetOne
+        - !ImportValue BHPublicSubnetTwo
+
+  TGWAttachmentVPC2:
+    Type: AWS::EC2::TransitGatewayVpcAttachment
+    Properties:
+      TransitGatewayId: !Ref TransitGateway
+      VpcId: !ImportValue EKSPrivateCluster-VpcId
+      SubnetIds:
+        - !ImportValue EKSPrivateCluster-PrivateSubnetOne
+        - !ImportValue EKSPrivateCluster-PrivateSubnetTwo
+
+Outputs:
+  TransitGatewayId:
+    Description: The ID of the created Transit Gateway
+    Value: !Ref TransitGateway

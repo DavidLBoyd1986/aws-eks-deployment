@@ -3,7 +3,7 @@
 # Variable Assigment:
 
 # Deployment specific variables
-CLUSTER_NAME=EKSPublicCluster
+CLUSTER_NAME=EKSPrivateCluster
 KUBE_VERSION="1.32"
 KUBE_NAMESPACE=web-app
 KUBE_LOAD_BALANCER_TYPE=NLB # Must be (NLB || ALB)

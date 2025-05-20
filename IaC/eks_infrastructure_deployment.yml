@@ -9,7 +9,7 @@ Parameters:
     Description: Name of the EKS Cluster
   NodeGroupName:
     Type: String
-    Default: EKSPublicClusterNodeGroup
+    Default: EKSPrivateClusterNodeGroup
     Description: Name of the EKS NodeGroup
   AmiId:
     Type: String
@@ -29,7 +29,7 @@ Parameters:
     Description: Min number of worker nodes
 
 Resources:
-  EKSPublicCluster:
+  EKSPrivateCluster:
     Type: AWS::EKS::Cluster
     Properties:
       Name: !Ref ClusterName
@@ -40,13 +40,13 @@ Resources:
         EndpointPrivateAccess: true
         EndpointPublicAccess: false
         SubnetIds:
-          - !ImportValue EKSPublicCluster-PublicSubnetOne
-          - !ImportValue EKSPublicCluster-PublicSubnetTwo
-          - !ImportValue EKSPublicCluster-PrivateSubnetOne
-          - !ImportValue EKSPublicCluster-PrivateSubnetTwo
+          - !ImportValue EKSPrivateCluster-PublicSubnetOne
+          - !ImportValue EKSPrivateCluster-PublicSubnetTwo
+          - !ImportValue EKSPrivateCluster-PrivateSubnetOne
+          - !ImportValue EKSPrivateCluster-PrivateSubnetTwo
         SecurityGroupIds:
-          - !ImportValue EKSPublicCluster-ControlPlaneSecurityGroup
-          - !ImportValue EKSPublicCluster-WorkerNodeSecurityGroup
+          - !ImportValue EKSPrivateCluster-ControlPlaneSecurityGroup
+          - !ImportValue EKSPrivateCluster-WorkerNodeSecurityGroup
       RoleArn: !ImportValue EKSClusterRoleARN
       Tags:
       - Key: Deployment
@@ -56,9 +56,9 @@ Resources:
       - Key: CanDelete
         Value: True
 
-  EKSPublicClusterNodeGroup:
+  EKSPrivateClusterNodeGroup:
     DependsOn:
-      - EKSPublicCluster
+      - EKSPrivateCluster
     Type: AWS::EKS::Nodegroup
     Properties:
       ClusterName: !Ref ClusterName
@@ -71,17 +71,17 @@ Resources:
         MaxSize:  !Ref MaxSize
         MinSize:  !Ref MinSize
       Subnets: 
-          - !ImportValue EKSPublicCluster-PublicSubnetOne
-          - !ImportValue EKSPublicCluster-PublicSubnetTwo
-          - !ImportValue EKSPublicCluster-PrivateSubnetOne
-          - !ImportValue EKSPublicCluster-PrivateSubnetTwo
+          - !ImportValue EKSPrivateCluster-PublicSubnetOne
+          - !ImportValue EKSPrivateCluster-PublicSubnetTwo
+          - !ImportValue EKSPrivateCluster-PrivateSubnetOne
+          - !ImportValue EKSPrivateCluster-PrivateSubnetTwo
       LaunchTemplate:
-        Id: !Ref EKSPublicClusterLaunchTemplate
+        Id: !Ref EKSPrivateClusterLaunchTemplate
   
-  EKSPublicClusterLaunchTemplate:
+  EKSPrivateClusterLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
-      LaunchTemplateName: EKSPublicClusterLaunchTemplate
+      LaunchTemplateName: EKSPrivateClusterLaunchTemplate
       VersionDescription: "Bootstrap the Node, and Install the Cloud Agent."
       LaunchTemplateData:
         ImageId: !Ref AmiId
@@ -91,8 +91,8 @@ Resources:
               VolumeSize: 20
         #Manually add in SGs after creation
         SecurityGroupIds:
-          - !ImportValue EKSPublicCluster-ControlPlaneSecurityGroup
-          - !ImportValue EKSPublicCluster-WorkerNodeSecurityGroup
+          - !ImportValue EKSPrivateCluster-ControlPlaneSecurityGroup
+          - !ImportValue EKSPrivateCluster-WorkerNodeSecurityGroup
         #KeyName: !ImportValue EKSKeyPair  # Need to create, only used for troubleshooting
         UserData:
           Fn::Base64: !Sub |

@@ -15,7 +15,7 @@
 
 variables:
   # Deployment specific variables
-  CLUSTER_NAME: EKSPublicCluster
+  CLUSTER_NAME: EKSPrivateCluster
   KUBE_VERSION: "1.32"
   KUBE_NAMESPACE: web-app
   KUBE_LOAD_BALANCER_TYPE: NLB # Must be (NLB || ALB)
@@ -155,10 +155,66 @@ deploy-cloudformation-templates:
       aws cloudformation deploy --stack-name eks-iam-stack \
         --template-file ./IaC/eks_iam_deployment.yml \
         --capabilities CAPABILITY_NAMED_IAM --region $REGION
-    # Deploy VPC Peering Connection so Bastion Hosts can connect to EKS Cluster
+    # Deploy Transit Gateway so Bastion Hosts can connect to EKS Cluster
     - |
-      aws cloudformation deploy --stack-name eks-bh-vpc-peering-stack \
-      --template-file ./IaC/eks_bh_vpc_peering_deployment.yml --region $REGION
+      aws cloudformation deploy --stack-name eks-bh-vpc-transit-gateway-stack \
+      --template-file ./IaC/eks_bh_vpc_transit_gateway_deployment.yml --region $REGION
+
+    # Update Bastion Host Route Tables with routes to the transit gateway
+
+    - |
+      TRANSIT_GATEWAY_ID=$(aws ec2 describe-transit-gateways \
+        --region = $REGION \
+        --filters "Name=description",Values=BH-EKS-VPC-TransitGateway" \
+        --query ''TransitGateways[*].TransitGatewayId' \
+        --output text)
+
+    # Get Bastion Host VPC ID, and update it's route tables:
+    - |
+      BH_VPC_ID=$(aws ec2 describe-vpcs --region $REGION \
+        --filters "Name=cidr,Values=192.168.2.0/24" \
+        --query "Vpcs[*].VpcId" --output text)
+      echo $BH_VPC_ID
+    - |
+      BH_ROUTE_TABLE_IDS=$(aws ec2 describe-route-tables \
+        --region "$REGION" \
+        --filters "Name=vpc-id,Values=$BH_VPC_ID" \
+        --query 'RouteTables[*].RouteTableId' \
+        --output text)
+      echo $BH_ROUTE_TABLE_IDS
+    - |
+      for RT_ID in $BH_ROUTE_TABLE_IDS; do
+        echo "Adding route to $RT_ID..."
+        aws ec2 create-route \
+          --route-table-id "$RT_ID" \
+          --destination-cidr-block "192.168.1.0/24" \
+          --transit-gateway-id "$TRANSIT_GATEWAY_ID" \
+          --region "$REGION"
+      done
+
+    # Get EKS VPC ID, and update it's route tables:
+    - |
+      EKS_VPC_ID=$(aws ec2 describe-vpcs --region $REGION \
+        --filters "Name=cidr,Values=192.168.1.0/24" \
+        --query "Vpcs[*].VpcId" --output text)
+      echo $EKS_VPC_ID
+    - |
+      EKS_ROUTE_TABLE_IDS=$(aws ec2 describe-route-tables \
+        --region "$REGION" \
+        --filters "Name=vpc-id,Values=$EKS_VPC_ID" \
+        --query 'RouteTables[*].RouteTableId' \
+        --output text)
+      echo $EKS_ROUTE_TABLE_IDS
+    - |
+      for RT_ID in $EKS_ROUTE_TABLE_IDS; do
+        echo "Adding route to $RT_ID..."
+        aws ec2 create-route \
+          --route-table-id "$RT_ID" \
+          --destination-cidr-block "192.168.2.0/24" \
+          --transit-gateway-id "$TRANSIT_GATEWAY_ID" \
+          --region "$REGION"
+      done
+
 
     # Deploy the BH Infrastructure Stack
     - |
@@ -180,5 +236,4 @@ deploy-cloudformation-templates:
     - echo "CloudFormation deployment is complete."
 
     - echo "Rest Deployment happens from the Linux Bastion Host!"
-
 
