@@ -158,7 +158,7 @@ deploy-cloudformation-templates:
     # Deploy Transit Gateway so Bastion Hosts can connect to EKS Cluster
     - |
       aws cloudformation deploy --stack-name eks-bh-vpc-transit-gateway-stack \
-      --template-file ./IaC/eks_bh_vpc_transit_gateway_deployment.yml --region $REGION
+      --template-file ./IaC/transit_gateway_deployment.yml --region $REGION
 
     # Update Bastion Host Route Tables with routes to the transit gateway
 
