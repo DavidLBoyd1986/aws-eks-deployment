@@ -1,0 +1,15 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'S3 Bucket for storing Kubernetes Deployment Script.'
+
+Parameters:
+  MyBucketName:
+    Type: String
+    Default: "aws-eks-deployment-private-cluster-s3-bucket"
+    Description: Input your own bucket name as a parameter 
+
+Resources:
+  Type: AWS::S3::Bucket
+  DeletionPolicy: Retain
+  Parameters:
+    "BucketName": $MyBucketName

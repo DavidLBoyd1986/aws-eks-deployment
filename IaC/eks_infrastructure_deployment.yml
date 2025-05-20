@@ -38,7 +38,7 @@ Resources:
         BootstrapClusterCreatorAdminPermissions: true
       ResourcesVpcConfig:
         EndpointPrivateAccess: true
-        EndpointPublicAccess: true 
+        EndpointPublicAccess: false
         SubnetIds:
           - !ImportValue EKSPublicCluster-PublicSubnetOne
           - !ImportValue EKSPublicCluster-PublicSubnetTwo

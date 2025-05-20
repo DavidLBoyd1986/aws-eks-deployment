@@ -1,6 +1,12 @@
 ---
 Parameters:
 
+  MyBucketName:
+    Type: String
+    Default: "aws-eks-deployment-private-cluster-s3-bucket"
+    Description: Input your own bucket name as a parameter  
+    # Must be added added as variable to build_script.sh or as a CICD variable in Gitlab or Jenkins Credential.
+
   personalPublicIp:
     Type: String
     Default: 0.0.0.0/0 # Defaults to fully public if parameter is deleted from parameters.json
@@ -120,6 +126,11 @@ Resources:
             curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
             tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm eksctl_$PLATFORM.tar.gz
             sudo mv /tmp/eksctl /usr/local/bin
+
+            # Download and run the eks_deployment_script from the S3 bucket
+            aws s3 cp s3://${MyBucketName} /tmp/eks_deploy_script.sh
+            chmod +x /tmp/eks_deploy_script.sh
+            /tmp/eks_deploy_script.sh
 
   windowsBastionHost:
     Type: AWS::EC2::Instance

@@ -21,6 +21,7 @@ variables:
   KUBE_LOAD_BALANCER_TYPE: NLB # Must be (NLB || ALB)
   REGION: $AWS_DEFAULT_REGION
   # Required CICD Variables:
+  BUCKET_NAME: $BUCKET_NAME
   BASTION_USERNAME: $BASTION_USERNAME
   BASTION_PASSWORD: $BASTION_PASSWORD
   PERSONAL_PUBLIC_IP: $PERSONAL_PUBLIC_IP 
@@ -32,10 +33,7 @@ variables:
 
 stages:    # List of stages and their order of execution
   - deploy_cloudformation
-  - deploy_cluster_connections
-  - deploy_aws_lb_controller
-  - deploy_applications
-  - deploy_load_balancer
+  - deploy_rest_from_bastion_host
 
 
 deploy-cloudformation-templates:
@@ -62,13 +60,21 @@ deploy-cloudformation-templates:
     - echo $PUBLIC_IP_RANGE
 
     # Replace variables in the CloudFormation files:
+    - sed -i "s|\\\$BUCKET_NAME|${BUCKET_NAME}|g" ./parameters/s3_bucket_parameters.json
     - sed -i "s|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g" ./parameters/eks_vpc_parameters.json
+    - sed -i "s|\\\$BUCKET_NAME|${BUCKET_NAME}|g" ./parameters/bh_infrastructure_parameters.json
     - sed -i "s|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g" ./parameters/bh_infrastructure_parameters.json
     - sed -i "s|\\\$BASTION_USERNAME|${BASTION_USERNAME}|g" ./parameters/bh_infrastructure_parameters.json
     - sed -i "s|\\\$BASTION_PASSWORD|${BASTION_PASSWORD}|g" ./parameters/bh_infrastructure_parameters.json
     - sed -i "s|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g" ./parameters/bh_infrastructure_parameters.json
     - sed -i "s|\\\$KUBE_VERSION|${KUBE_VERSION}|g" ./parameters/bh_infrastructure_parameters.json
     - sed -i "s|\\\$HELM_VERSION|${HELM_VERSION}|g" ./parameters/bh_infrastructure_parameters.json
+
+    # Replace ${KUBE_NAMESPACE} in kubernetes files:
+    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-deployment.yml
+    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-nlb.yml
+    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-service.yml
+    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-ingress.yml
 
     # Get AWS ACCOUNT ID 
     - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -83,6 +89,10 @@ deploy-cloudformation-templates:
     - sed -i "s|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g" ./IaC/eks_infrastructure_deployment.yml
     - sed -i "s|\\\$AMI_ID|${AMI_ID}|g" ./IaC/eks_infrastructure_deployment.yml
 
+    # Copy/Compress the required cluster deploy files, compress the directory
+    - cp -rp parameters/ IaC/ kubernetes/ kubernetes_deploy_script.sh build_script_deployment/
+    - tar -cvf eks_deploy_script.tar build_script_deployment
+
     # Test the variables were replaced successfully
     - cat ./parameters/bh_infrastructure_parameters.json
     - cat ./parameters/eks_vpc_parameters.json
@@ -92,6 +102,26 @@ deploy-cloudformation-templates:
     #------------------------------------
     # Deploying the CloudFormation Stacks
     #------------------------------------
+
+
+    # Deploy the S3 Bucket Stack
+    - |
+      S3_BUCKET_EXISTS=$(aws cloudformation list-stacks \
+        --stack-status-filter CREATE_COMPLETE --region $REGION \
+        2> /dev/null | grep -c s3-bucket-stack || echo 0)
+
+    - |
+      if [ $S3_BUCKET_EXISTS -gt 0 ]; then
+        echo "The s3-bucket-stack already exists. Skipping this step....";
+      else
+        aws cloudformation create-stack --stack-name s3-bucket-stack \
+          --template-body file://./IaC/s3_bucket_kube_deployment.yml \
+          --parameters file://./parameters/s3_bucket_parameters.json \
+          --capabilities CAPABILITY_NAMED_IAM --region $REGION;
+      fi
+
+    # Upload the tar file to the S3 bucket
+    - aws s3 cp copy_to_bh.tar s3://$BUCKET_NAME
 
     # Deploy the BH VPC Stack
     - |
@@ -129,11 +159,6 @@ deploy-cloudformation-templates:
     - |
       aws cloudformation deploy --stack-name eks-bh-vpc-peering-stack \
       --template-file ./IaC/eks_bh_vpc_peering_deployment.yml --region $REGION
-    # Deploy the EKS Infrastructure Stack
-    - |
-      aws cloudformation deploy --stack-name eks-infrastructure-stack \
-        --template-file ./IaC/eks_infrastructure_deployment.yml \
-        --capabilities CAPABILITY_NAMED_IAM --region $REGION
 
     # Deploy the BH Infrastructure Stack
     - |
@@ -154,223 +179,6 @@ deploy-cloudformation-templates:
 
     - echo "CloudFormation deployment is complete."
 
-
-deploy-cluster-connections:
-  stage: deploy_cluster_connections
-  environment: production
-  tags:
-    - gitlab-runner-docker
-  image:
-    name: davidboyd1986/aws-kube:latest
-  script:
-    # Configure kubectl to connect to the Cluster
-    - kubectl version --client
-    - aws sts get-caller-identity
-    - aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
-
-    # Allow Bastion Host's IAM Role to access the Cluster
-    - |
-      BASTION_HOST_ROLE_ARN=$(aws cloudformation describe-stacks --stack-name bh-iam-stack --region $REGION \
-        --query "Stacks[0].Outputs[?OutputKey=='BastionHostRoleArn'].OutputValue" --output text)
-
-    - |
-      eksctl create iamidentitymapping --cluster $CLUSTER_NAME --region $REGION --arn $BASTION_HOST_ROLE_ARN \
-        --username system:node:{{EC2PrivateDNSName}} --group system:masters
-
-
-deploy-aws-load-balancer-controller:
-  stage: deploy_aws_lb_controller
-  environment: production
-  tags:
-    - gitlab-runner-docker
-  image:
-    name: davidboyd1986/aws-kube:latest
-  script:
-
-    # Connect to the Cluster again - needs done for every stage
-    - aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
-
-    # AWS Load Balancer Controller IAM Policy Name
-    - POLICY_NAME="AWSLoadBalancerControllerIAMPolicy"
-
-    # Check if AWSLoadBalancerControllerIAMPolicy exists, and if not, create it:
-    - |
-      ALB_CONTROLLER_IAM_POLICY_EXISTS=$(aws iam list-policies --scope Local \
-        --query "Policies[?PolicyName=='${POLICY_NAME}']" | grep -c ${POLICY_NAME})
-
-    - |
-      if [ "$ALB_CONTROLLER_IAM_POLICY_EXISTS" -gt 0 ]; then
-        echo "The policy ${POLICY_NAME} already exists. Skipping this step..."
-      else
-        curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.12.0/docs/install/iam_policy.json
-        aws iam create-policy --policy-name ${POLICY_NAME} --policy-document file://iam_policy.json
-      fi
-
-    # Get AWS ACCOUNT ID 
-    - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
-    # Check if the AWS Load Balancer Controller Service Account exists in kubernetes, and if not, create it:
-    - |
-      ALB_CONTROLLER_SA_EXISTS=$(kubectl get serviceaccount \
-        aws-load-balancer-controller -n kube-system 2> /dev/null \
-        | grep -c aws-load-balancer-controller || echo 0)
-
-    - |
-      if [ "$ALB_CONTROLLER_SA_EXISTS" -gt 0 ]; then
-        echo "The AWS Load Balancer Controller Service Account already exists. Skipping this step..."
-      else
-        eksctl utils associate-iam-oidc-provider --region $REGION \
-          --cluster $CLUSTER_NAME --approve
-        eksctl create iamserviceaccount --cluster=$CLUSTER_NAME \
-          --namespace=kube-system --name=aws-load-balancer-controller \
-          --role-name=AWSLoadBalancerController \
-          --attach-policy-arn=arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${POLICY_NAME} \
-          --override-existing-serviceaccounts --region $REGION --approve
-      fi
-
-    # Have to sleep to give time for everything to get created:
-    - sleep 30
-
-    # Check if the AWS Load Balancer Controller is deployed, and if not, deploy it:
-    - |
-      ALB_CONTROLLER_EXISTS=$(kubectl get deployment aws-load-balancer-controller \
-        -n kube-system -o jsonpath='{.status.availableReplicas}' 2> /dev/null || echo 0)
-
-    - |
-      if [ "$ALB_CONTROLLER_EXISTS" -gt 0 ]; then
-        echo "The AWS Load Balancer Controller already exists. Skipping this step..."
-      else
-        helm repo add eks https://aws.github.io/eks-charts
-        helm repo update eks
-        helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
-          -n kube-system --set clusterName=$CLUSTER_NAME \
-          --set serviceAccount.create=false \
-          --set serviceAccount.name=aws-load-balancer-controller
-        sleep 20
-      fi
-
-    # What until the Load Balancer is launched
-      # I think sleeping for 20 seconds makes this check unnecessary.
-
-    # Check if the AWS Load Balancer Controller is (finally) installed
-    - kubectl get all -n kube-system --selector app.kubernetes.io/name=aws-load-balancer-controller
-
-deploy-application-to-eks:
-  stage: deploy_applications
-  environment: production
-  tags:
-    - gitlab-runner-docker
-  image:
-    name: davidboyd1986/aws-kube:latest
-  script:
-
-    # Replace ${KUBE_NAMESPACE} in kubernetes files:
-    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-deployment.yml
-    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-nlb.yml
-    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-service.yml
-    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-ingress.yml
-
-    # Connect to the Cluster again - needs done for every stage
-    - aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
-
-    # If the namespace doesn't exist, then create it:
-    - |
-      NAMESPACE_EXISTS=$(kubectl get namespace web-app 2> /dev/null | \
-        grep -c web-app || echo 0)
-
-    - |
-      if [ "$NAMESPACE_EXISTS" -gt 0 ]; then
-        echo "Namespace ${KUBE_NAMESPACE} exists.";
-      else
-        echo "Creating ${KUBE_NAMESPACE} namespace";
-        kubectl create namespace ${KUBE_NAMESPACE}
-      fi
-
-    - kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-deployment.yml
-
-    # Run some test commands:
-    - kubectl get all -n ${KUBE_NAMESPACE}
-    - kubectl get pods -n ${KUBE_NAMESPACE}
-
-
-deploy-nlb-for-application:
-  stage: deploy_load_balancer
-  environment: production
-  tags:
-    - gitlab-runner-docker
-  image:
-    name: davidboyd1986/aws-kube:latest
-  rules:
-    - if: $KUBE_LOAD_BALANCER_TYPE == "NLB"
-  script:
-
-    # Replace ${KUBE_NAMESPACE} in kubernetes files:
-    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-deployment.yml
-    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-nlb.yml
-    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-service.yml
-    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-ingress.yml
-
-    # Connect to the Cluster again - needs done for every stage
-    - aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
-
-    # Create the NLB:
-    - kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-nlb.yml
-
-    # Wait for deployment: TODO - Add an actual while loop to check
-    - sleep 180
-
-    # Get the DNS name for the NLB
-    - |
-      NLB_DNS=$(kubectl get svc ${KUBE_NAMESPACE}-nlb-service -n ${KUBE_NAMESPACE} \
-        -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' || echo 0)
-
-    - echo $NLB_DNS
-    - sleep 20
-
-    # Test the application is accessible via the NLB DNS. TODO - Create an actual test
-    - curl -v http://${NLB_DNS}:8080/WebGoat/login
-
-    - echo "Deployment Complete!"
-
-
-deploy-alb-for-application:
-  stage: deploy_load_balancer
-  environment: production
-  tags:
-    - gitlab-runner-docker
-  image:
-    name: davidboyd1986/aws-kube:latest
-  rules:
-    - if: $KUBE_LOAD_BALANCER_TYPE == "ALB"
-  script:
-
-    # Replace ${KUBE_NAMESPACE} in kubernetes files:
-    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-deployment.yml
-    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-nlb.yml
-    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-service.yml
-    - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-ingress.yml
-
-    # Connect to the Cluster again - needs done for every stage
-    - aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
-
-    # Create the ALB:
-    - kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-service.yml
-    - kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-ingress.yml
-
-    # Wait for deployment: TODO - Add an actual while loop to check
-    - sleep 180
-
-    # Get the DNS name for the ALB
-    - |
-      ALB_DNS=$(kubectl get ingress ${KUBE_NAMESPACE}-ingress -n ${KUBE_NAMESPACE} \
-        -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-
-    - echo $ALB_DNS
-    - sleep 20
-
-    # Test the application is accessible via the ALB DNS. TODO - Create an actual test
-    - curl -v http://${ALB_DNS}:8080/WebGoat/login
-
-    - echo "Deployment Complete!"
+    - echo "Rest Deployment happens from the Linux Bastion Host!"
 
 

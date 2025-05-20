@@ -1,5 +1,9 @@
 [
     {
+      "ParameterKey": "MyBucketName",
+      "ParameterValue": "$BUCKET_NAME"
+    },
+    {
       "ParameterKey": "personalPublicIp",
       "ParameterValue": "$PUBLIC_IP_RANGE"
     },
