@@ -33,7 +33,6 @@ variables:
 
 stages:    # List of stages and their order of execution
   - deploy_cloudformation
-  - deploy_rest_from_bastion_host
 
 
 deploy-cloudformation-templates:
@@ -90,7 +89,7 @@ deploy-cloudformation-templates:
     - sed -i "s|\\\$AMI_ID|${AMI_ID}|g" ./IaC/eks_infrastructure_deployment.yml
 
     # Copy/Compress the required cluster deploy files, compress the directory
-    - cp -rp parameters/ IaC/ kubernetes/ kubernetes_deploy_script.sh build_script_deployment/
+    - cp -rp parameters/ IaC/ kubernetes/ eks_deploy_script.sh build_script_deployment/
     - tar -cvf eks_deploy_script.tar build_script_deployment
 
     # Test the variables were replaced successfully
@@ -121,7 +120,7 @@ deploy-cloudformation-templates:
       fi
 
     # Upload the tar file to the S3 bucket
-    - aws s3 cp copy_to_bh.tar s3://$BUCKET_NAME
+    - aws s3 cp eks_deploy_script.tar s3://$BUCKET_NAME
 
     # Deploy the BH VPC Stack
     - |
