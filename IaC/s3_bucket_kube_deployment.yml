@@ -9,7 +9,7 @@ Parameters:
     Description: Input your own bucket name as a parameter 
 
 Resources:
-  EKS_Deploy_Script_Bucket:
+  EKSDeployScriptBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     Properties:
