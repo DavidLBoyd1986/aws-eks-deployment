@@ -169,6 +169,7 @@ deploy-cloudformation-templates:
     # Update Bastion Host Route Tables with routes to the transit gateway
     - |
       TRANSIT_GATEWAY_ID=$(aws ec2 describe-transit-gateways --region $REGION \
+        --filters "Name=state,Values=available" \
         --query 'TransitGateways[*]' --output json | \
         jq -r '.[] | select(.Description == "BH-EKS-VPC-TransitGateway") | .TransitGatewayId')
 
