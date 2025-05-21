@@ -10,6 +10,8 @@ The AWS-LB Controller will still create a Load Balancer, but it will only accept
 
 <h2>Differences in this branch:</h2>
 
+- Fully Private Cluster - No Public Subnets in the VPC
+
 - Private API Endpoint
 
 - Most of the deployment happens from the Linux Bastion Host
