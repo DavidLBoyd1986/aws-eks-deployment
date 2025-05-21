@@ -131,6 +131,51 @@ Resources:
       SecurityGroupIds:
         - !Ref InterfaceEndpointSecurityGroup
 
+  EKSInterfaceEndpoint:
+    DependsOn:
+      - EC2InterfaceEndpoint
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      VpcEndpointType: 'Interface'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.eks'
+      VpcId: !Ref VPC
+      PrivateDnsEnabled: true
+      SubnetIds: 
+        - !Ref PrivateSubnet01
+        - !Ref PrivateSubnet02
+      SecurityGroupIds:
+        - !Ref InterfaceEndpointSecurityGroup
+
+  EKSAuthInterfaceEndpoint:
+    DependsOn:
+      - EC2InterfaceEndpoint
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      VpcEndpointType: 'Interface'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.eks-auth'
+      VpcId: !Ref VPC
+      PrivateDnsEnabled: true
+      SubnetIds: 
+        - !Ref PrivateSubnet01
+        - !Ref PrivateSubnet02
+      SecurityGroupIds:
+        - !Ref InterfaceEndpointSecurityGroup
+
+  STSAuthInterfaceEndpoint:
+    DependsOn:
+      - EC2InterfaceEndpoint
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      VpcEndpointType: 'Interface'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.sts'
+      VpcId: !Ref VPC
+      PrivateDnsEnabled: true
+      SubnetIds: 
+        - !Ref PrivateSubnet01
+        - !Ref PrivateSubnet02
+      SecurityGroupIds:
+        - !Ref InterfaceEndpointSecurityGroup
+
   S3GatewayEndpoint:
     DependsOn:
       - EC2InterfaceEndpoint
@@ -168,6 +213,51 @@ Resources:
     Properties:
       VpcEndpointType: 'Interface'
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.api'
+      VpcId: !Ref VPC
+      PrivateDnsEnabled: true
+      SubnetIds: 
+        - !Ref PrivateSubnet01
+        - !Ref PrivateSubnet02
+      SecurityGroupIds:
+        - !Ref InterfaceEndpointSecurityGroup
+
+  ELBInterfaceEndpoint:
+    DependsOn:
+      - EC2InterfaceEndpoint
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      VpcEndpointType: 'Interface'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.elasticloadbalancing'
+      VpcId: !Ref VPC
+      PrivateDnsEnabled: true
+      SubnetIds: 
+        - !Ref PrivateSubnet01
+        - !Ref PrivateSubnet02
+      SecurityGroupIds:
+        - !Ref InterfaceEndpointSecurityGroup
+
+  CWLogsInterfaceEndpoint:
+    DependsOn:
+      - EC2InterfaceEndpoint
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      VpcEndpointType: 'Interface'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.logs'
+      VpcId: !Ref VPC
+      PrivateDnsEnabled: true
+      SubnetIds: 
+        - !Ref PrivateSubnet01
+        - !Ref PrivateSubnet02
+      SecurityGroupIds:
+        - !Ref InterfaceEndpointSecurityGroup
+
+  XRayInterfaceEndpoint:
+    DependsOn:
+      - EC2InterfaceEndpoint
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      VpcEndpointType: 'Interface'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.xray'
       VpcId: !Ref VPC
       PrivateDnsEnabled: true
       SubnetIds: 
