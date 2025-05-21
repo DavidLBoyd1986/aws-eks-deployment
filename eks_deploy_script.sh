@@ -30,6 +30,7 @@ aws cloudformation deploy --stack-name eks-infrastructure-stack \
     --template-file /tmp/build_script_deployment/IaC/eks_infrastructure_deployment.yml \
     --capabilities CAPABILITY_NAMED_IAM --region $REGION
 
+# TODO - Below didn't fix it. Might delete it if long sleep command solves the problem
 # Wait for EKS cluster to become ACTIVE
 echo "Waiting for EKS cluster to become ACTIVE..."
 CLUSTER_STATUS="INACTIVE"
@@ -40,6 +41,10 @@ until [ $CLUSTER_STATUS = "ACTIVE" ]; do
     sleep 30
 done
 echo "Cluster is ACTIVE."
+
+# Adding a really long sleep to verify if waiting for the Cluster is the issue
+sleep 600
+echo "The long sleep is over....."
 
 # Configure kubectl to connect to the Cluster
 kubectl version --client
