@@ -42,10 +42,6 @@ until [ $CLUSTER_STATUS = "ACTIVE" ]; do
 done
 echo "Cluster is ACTIVE."
 
-# Adding a really long sleep to verify if waiting for the Cluster is the issue
-sleep 600
-echo "The long sleep is over....."
-
 # Configure kubectl to connect to the Cluster
 kubectl version --client
 aws sts get-caller-identity
@@ -97,9 +93,6 @@ fi
 
 # Have to sleep to give time for everything to get created:
 sleep 30
-
-# Test the IAM Role was created automatically when creating the iamserviceaccount:
-aws iam get-role --role-name AWSLoadBalancerController
 
 # Test the ServiceAccount was created:
 kubectl get serviceaccount aws-load-balancer-controller --namespace kube-system --output yaml

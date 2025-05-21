@@ -1,6 +1,12 @@
-<h1>Private Cluster - Private API Endpoint</h1>
+<h1>Private Cluster - Fully Private Cluster</h1>
 
-This branch deploys a Cluster with a private API endpoint. However, the AWS-LB Controller will still create a Load Balancer that is open to any IP. The created Load Balancer can restrict traffic by simply updating the Security Group attached to it. Currently it only allows traffic to the port configured in the Kubernetes Service, so update that rule to restrict the source IPs.
+This branch deploys an actual Private Cluster. The Cluster only exists in Private Subnets with no traffic able to enter or leave the subnets; There are NO Public Subnets in the VPC.
+
+All required Private Cluster traffic occurs in the VPC, and uses Interface Endpoints to communicate with AWS Services.
+
+All outside traffic occurs from connecting VPCs using Transit Gateways.
+
+The AWS-LB Controller will still create a Load Balancer, but it will only accept traffic from inside the VPC, as no outside traffic will be able to reach the created Load Balancer.
 
 <h2>Differences in this branch:</h2>
 
