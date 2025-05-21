@@ -107,6 +107,12 @@ deploy-cloudformation-templates:
     # Deploy the S3 Bucket Stack
     - S3_BUCKET_EXISTS=$(aws s3 ls | grep -c $BUCKET_NAME || echo 0)
 
+    # TODO - Check if the s3-bucket-stack exists.
+      # - If the stack exists but not the bucket, delete the stack
+      # - Update the below to only run the stack and bucket don't exist
+      # - This is a stupid way to do it because it's a pain to delete the stack.
+      # - Have to find a way to make this better overall....
+
     - |
       if [ $S3_BUCKET_EXISTS -gt 0 ]; then
         echo "The s3-bucket-stack already exists. Skipping this step....";
