@@ -144,10 +144,42 @@ Resources:
         - !Ref InterfaceEndpointSecurityGroup
 
   S3InterfaceEndpoint:
+    DependsOn:
+      - EC2InterfaceEndpoint
     Type: 'AWS::EC2::VPCEndpoint'
     Properties:
       VpcEndpointType: 'Interface'
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcId: !Ref VPC
+      PrivateDnsEnabled: true
+      SubnetIds: 
+        - !Ref PrivateSubnet01
+        - !Ref PrivateSubnet02
+      SecurityGroupIds:
+        - !Ref InterfaceEndpointSecurityGroup
+
+  ECRDockerInterfaceEndpoint:
+    DependsOn:
+      - EC2InterfaceEndpoint
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      VpcEndpointType: 'Interface'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.dkr'
+      VpcId: !Ref VPC
+      PrivateDnsEnabled: true
+      SubnetIds: 
+        - !Ref PrivateSubnet01
+        - !Ref PrivateSubnet02
+      SecurityGroupIds:
+        - !Ref InterfaceEndpointSecurityGroup
+
+  ECRApiInterfaceEndpoint:
+    DependsOn:
+      - EC2InterfaceEndpoint
+    Type: 'AWS::EC2::VPCEndpoint'
+    Properties:
+      VpcEndpointType: 'Interface'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.api'
       VpcId: !Ref VPC
       PrivateDnsEnabled: true
       SubnetIds: 
