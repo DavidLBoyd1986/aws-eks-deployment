@@ -131,13 +131,13 @@ Resources:
       SecurityGroupIds:
         - !Ref InterfaceEndpointSecurityGroup
 
-  S3InterfaceEndpoint:
+  S3GatewayEndpoint:
     DependsOn:
       - EC2InterfaceEndpoint
     Type: 'AWS::EC2::VPCEndpoint'
     Properties:
       VpcEndpointType: 'Interface'
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      ServiceName: !Sub 'com.amazonaws.s3-global.accesspoint'
       VpcId: !Ref VPC
       PrivateDnsEnabled: true
       SubnetIds: 
