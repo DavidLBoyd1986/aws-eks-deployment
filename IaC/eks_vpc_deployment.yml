@@ -189,8 +189,6 @@ Resources:
       RouteTableIds: 
         - !Ref PrivateRouteTable01
         - !Ref PrivateRouteTable02
-      SecurityGroupIds:
-        - !Ref InterfaceEndpointSecurityGroup
 
   ECRDockerInterfaceEndpoint:
     DependsOn:
@@ -274,14 +272,8 @@ Resources:
       VpcId: !Ref VPC
       GroupName: InterfaceEndpointSecurityGroup
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 0
-          ToPort: 65535
-          CidrIp: !Ref VpcBlock
-        - IpProtocol: udp 
-          FromPort: 0
-          ToPort: 65535
-          CidrIp: !Ref VpcBlock
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
         - IpProtocol: -1 
           CidrIp: 0.0.0.0/0 
