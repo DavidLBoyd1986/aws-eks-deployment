@@ -72,6 +72,7 @@ Resources:
                   - iam:PassRole
                   - iam:UpdateRole
                   - iam:UpdateRoleDescription
+                  - iam:ListPolicies
                   - iam:CreatePolicy
                   - iam:CreatePolicyVersion
                   - iam:UpdateAssumeRolePolicy

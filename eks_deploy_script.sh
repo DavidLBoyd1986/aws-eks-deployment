@@ -30,17 +30,27 @@ aws cloudformation deploy --stack-name eks-infrastructure-stack \
     --template-file /tmp/build_script_deployment/IaC/eks_infrastructure_deployment.yml \
     --capabilities CAPABILITY_NAMED_IAM --region $REGION
 
+# Wait for EKS cluster to become ACTIVE
+echo "Waiting for EKS cluster to become ACTIVE..."
+CLUSTER_STATUS="INACTIVE"
+until [ $CLUSTER_STATUS = "ACTIVE" ]; do
+    CLUSTER_STATUS=$(aws eks describe-cluster --name "$CLUSTER_NAME" \
+        --region "$REGION" --query 'cluster.status' --output text)
+    echo "Cluster status is not ACTIVE yet. Sleeping for 30 seconds..."
+    sleep 30
+done
+echo "Cluster is ACTIVE."
+
 # Configure kubectl to connect to the Cluster
 kubectl version --client
 aws sts get-caller-identity
 aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
 
+# Test kubectl configuration/connection to Cluster
+kubectl get all -A
 #-------------------------------------------
 # Deploying the AWS Load Balancer Controller 
 #-------------------------------------------
-
-# Connect to the Cluster again - needs done for every stage
-aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
 
 # AWS Load Balancer Controller IAM Policy Name
 POLICY_NAME="AWSLoadBalancerControllerIAMPolicy"
@@ -64,6 +74,10 @@ AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ALB_CONTROLLER_SA_EXISTS=$(kubectl get serviceaccount \
     aws-load-balancer-controller -n kube-system 2> /dev/null \
     | grep -c aws-load-balancer-controller)
+
+# TEMP TEST - Delete if cluster status loop worked
+aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
+kubectl get all -A
 
 if [ $ALB_CONTROLLER_SA_EXISTS -gt 0 ]; then
     echo "The AWS Load Balancer Controller Service Account already exists. \
