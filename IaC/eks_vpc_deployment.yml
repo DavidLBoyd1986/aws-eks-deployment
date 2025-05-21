@@ -68,18 +68,6 @@ Resources:
       - Key: Network
         Value: Private02
 
-  PrivateRoute01:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PrivateRouteTable01
-      DestinationCidrBlock: 0.0.0.0/0
-
-  PrivateRoute02:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PrivateRouteTable02
-      DestinationCidrBlock: 0.0.0.0/0
-
   PrivateSubnet01:
     Type: AWS::EC2::Subnet
     Properties:
