@@ -48,26 +48,6 @@ Resources:
       - Key: Name
         Value: !Sub '${AWS::StackName}-VPC'
 
-  PrivateRouteTable01:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-      - Key: Name
-        Value: Private Subnet AZ1
-      - Key: Network
-        Value: Private01
-
-  PrivateRouteTable02:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-      - Key: Name
-        Value: Private Subnet AZ2
-      - Key: Network
-        Value: Private02
-
   PrivateSubnet01:
     Type: AWS::EC2::Subnet
     Properties:
@@ -80,6 +60,7 @@ Resources:
         Ref: PrivateSubnet01Block
       VpcId:
         Ref: VPC
+      MapPublicIpOnLaunch: false
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-PrivateSubnet01"
@@ -100,11 +81,32 @@ Resources:
         Ref: PrivateSubnet02Block
       VpcId:
         Ref: VPC
+      MapPublicIpOnLaunch: false
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-PrivateSubnet02"
       - Key: kubernetes.io/role/internal-elb
         Value: 1
+
+  PrivateRouteTable01:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Private Subnet AZ1
+      - Key: Network
+        Value: Private01
+
+  PrivateRouteTable02:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: Private Subnet AZ2
+      - Key: Network
+        Value: Private02
 
   PrivateSubnet01RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -181,13 +183,12 @@ Resources:
       - EC2InterfaceEndpoint
     Type: 'AWS::EC2::VPCEndpoint'
     Properties:
-      VpcEndpointType: 'Interface'
-      ServiceName: !Sub 'com.amazonaws.s3-global.accesspoint'
+      VpcEndpointType: 'Gateway'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
       VpcId: !Ref VPC
-      PrivateDnsEnabled: true
-      SubnetIds: 
-        - !Ref PrivateSubnet01
-        - !Ref PrivateSubnet02
+      RouteTableIds: 
+        - !Ref PrivateRouteTable01
+        - !Ref PrivateRouteTable02
       SecurityGroupIds:
         - !Ref InterfaceEndpointSecurityGroup
 
