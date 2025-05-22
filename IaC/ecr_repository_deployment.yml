@@ -37,7 +37,7 @@ Resources:
             EmptyOnDelete: false
             ImageScanningConfiguration:
                 ScanOnPush: true
-            RepositoryName: eks/aws-lb-controller
+            RepositoryName: eks/aws-load-balancer-controller
             RepositoryPolicyText:
                 {
                     "Version": "2012-10-17",
