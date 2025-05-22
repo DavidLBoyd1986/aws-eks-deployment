@@ -55,12 +55,33 @@ deploy-ecr-repositories:
     - echo "Deploying Elastic Container Repository...."
     - echo "Deploying cloudformation template"
 
-    # TODO - Check if the repositories already exist
+    # Replace variable in repo_app_deployment with IMAGE_REPOSITORY name
+    - sed -i "s|\\\${IMAGE_REPOSITORY}|${IMAGE_REPOSITORY}|g" ./IaC/repo_app_deployment.yml
+
+    # Check if the repositories already exist
     - |
-      aws cloudformation deploy \
-        --template-file ./IaC/ecr_repository_deployment.yml \
-        --stack-name ecr-repositories-stack
-    - echo "Repositories successfully deployed."
+      ECR_REPOS=$(aws ecr describe-repositories \
+        --query "repositories[*].repositoryName" --output text)
+
+    - |
+      if [[ $ECR_REPOS == *$IMAGE_REPOSITORY* ]]; then
+        echo "The Repository: $IMAGE_REPOSITORY already exists. Skipping deployment...."
+      else
+        aws cloudformation deploy \
+          --template-file ./IaC/repo_app_deployment.yml \
+          --stack-name ${IMAGE_REPOSITORY}-repository-stack
+        echo "The ${IMAGE_REPOSITORY} repository was successfully deployed."
+      fi
+
+    - |
+      if [[ $ECR_REPOS == *aws-load-balancer-controller* ]]; then
+        echo "The Repository: aws-load-balancer-controller already exists. Skipping deployment...."
+      else
+        aws cloudformation deploy \
+          --template-file ./IaC/repo_aws_lb_controller_deployment.yml \
+          --stack-name aws-lb-controller-repository-stack
+        echo "The AWS Load Balancer Controller repository was successfully deployed."
+      fi
 
     # This pulls/pushes the image for the aws-load-balancer-controller
     - |
@@ -149,7 +170,7 @@ deploy-cloudformation-templates:
         --name /aws/service/eks/optimized-ami/${KUBE_VERSION}/amazon-linux-2/recommended/image_id \
         --region ${REGION} --query 'Parameter.Value' --output text)
 
-    # Replace the variables ($CLUSTER_NAME) in other files with the actual values:
+    # Replace the variables in IaC files with the actual values:
     - sed -i "s|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g" ./IaC/eks_infrastructure_deployment.yml
     - sed -i "s|\\\$AMI_ID|${AMI_ID}|g" ./IaC/eks_infrastructure_deployment.yml
 
