@@ -54,6 +54,8 @@ deploy-ecr-repositories:
     # The repositories are required to host images for the private cluster
     - echo "Deploying Elastic Container Repository...."
     - echo "Deploying cloudformation template"
+
+    # TODO - Check if the repositories already exist
     - |
       aws cloudformation deploy \
         --template-file ./IaC/ecr_repository_deployment.yml \
