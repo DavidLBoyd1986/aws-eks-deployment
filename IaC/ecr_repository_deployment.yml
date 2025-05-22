@@ -1,0 +1,64 @@
+Resources:
+    VulnerableWebAppRepository:
+        Type: AWS::ECR::Repository
+        Properties:
+            EmptyOnDelete: false
+            ImageScanningConfiguration:
+                ScanOnPush: true
+            RepositoryName: vulnerable-web-app
+            RepositoryPolicyText:
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "AllowPushPull",
+                            "Effect": "Allow",
+                            "Principal": {
+                                "AWS": [
+                                    !Sub "arn:aws:iam::${AWSAccountId}:root",
+                                ]
+                            },
+                            "Action": [
+                                "ecr:BatchGetImage",
+                                "ecr:BatchCheckLayerAvailability",
+                                "ecr:CompleteLayerUpload",
+                                "ecr:GetDownloadUrlForLayer",
+                                "ecr:InitiateLayerUpload",
+                                "ecr:PutImage",
+                                "ecr:UploadLayerPart"
+                            ]
+                        }
+                    ]
+                }
+
+    AWSLoadBalancerControllerRepository:
+        Type: AWS::ECR::Repository
+        Properties:
+            EmptyOnDelete: false
+            ImageScanningConfiguration:
+                ScanOnPush: true
+            RepositoryName: eks/aws-lb-controller-repository
+            RepositoryPolicyText:
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "AllowPushPull",
+                            "Effect": "Allow",
+                            "Principal": {
+                                "AWS": [
+                                    !Sub "arn:aws:iam::${AWSAccountId}:root",
+                                ]
+                            },
+                            "Action": [
+                                "ecr:BatchGetImage",
+                                "ecr:BatchCheckLayerAvailability",
+                                "ecr:CompleteLayerUpload",
+                                "ecr:GetDownloadUrlForLayer",
+                                "ecr:InitiateLayerUpload",
+                                "ecr:PutImage",
+                                "ecr:UploadLayerPart"
+                            ]
+                        }
+                    ]
+                }

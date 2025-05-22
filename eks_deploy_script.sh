@@ -8,6 +8,10 @@ KUBE_VERSION="1.32"
 KUBE_NAMESPACE=web-app
 KUBE_LOAD_BALANCER_TYPE=NLB # Must be (NLB || ALB)
 REGION=us-east-1
+export HOME=/root
+# Get AWS ACCOUNT ID 
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
 
 
 #--------------------------------------
@@ -46,6 +50,12 @@ echo "Cluster is ACTIVE."
 kubectl version --client
 aws sts get-caller-identity
 aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
+whoami
+cat /root/.kube/config
+cat /home/ec2-user/.kube/config
+env | grep AWS
+sleep 20
+kubectl cluster-info
 
 # Test kubectl configuration/connection to Cluster
 kubectl get all -A
@@ -67,9 +77,6 @@ else
     curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.12.0/docs/install/iam_policy.json
     aws iam create-policy --policy-name ${POLICY_NAME} --policy-document file://iam_policy.json
 fi
-
-# Get AWS ACCOUNT ID 
-AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
 # Check if the AWS Load Balancer Controller Service Account exists in kubernetes, and if not, create it:
 ALB_CONTROLLER_SA_EXISTS=$(kubectl get serviceaccount \
@@ -111,7 +118,9 @@ else
     helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
         -n kube-system --set clusterName=$CLUSTER_NAME \
         --set serviceAccount.create=false \
-        --set serviceAccount.name=aws-load-balancer-controller
+        --set serviceAccount.name=aws-load-balancer-controller \
+        --set image.repository=${ECR_REGISTRY}/eks/aws-load-balancer-controller \
+        --set image.tag=:v2.13.2
     sleep 20
 fi
 

@@ -24,15 +24,58 @@ variables:
   BUCKET_NAME: $BUCKET_NAME
   BASTION_USERNAME: $BASTION_USERNAME
   BASTION_PASSWORD: $BASTION_PASSWORD
-  PERSONAL_PUBLIC_IP: $PERSONAL_PUBLIC_IP 
+  PERSONAL_PUBLIC_IP: $PERSONAL_PUBLIC_IP
+  ECR_REGISTRY: $ECR_REGISTRY
   # Possible Future Additions:
-  #IMAGE_REGISTRY: 
-  #IMAGE_REPOSITORY:
-  #IMAGE_TAG:
-
+  IMAGE_REGISTRY: $ECR_REGISTRY
+  IMAGE_REPOSITORY: webgoat
+  IMAGE_TAG: latest
 
 stages:    # List of stages and their order of execution
+  - deploy_ecr_repositories
   - deploy_cloudformation
+
+
+deploy-ecr-repositories:
+  stage: deploy_ecr_repositories 
+  environment: production
+  tags:
+    - gitlab-runner-shell # I don't use docker-in-docker yet
+  image:
+    name: davidboyd1986/aws-kube:latest
+  timeout: 30m 
+  script:
+
+    #----------------------------
+    # Deploy the ECR Repositories
+    #----------------------------
+
+    # The repositories are required to host images for the private cluster
+    - echo "Deploying Elastic Container Repository...."
+    - echo "Deploying cloudformation template"
+    - |
+      aws cloudformation deploy \
+        --template-file ./IaC/ecr_repository_deployment.yml \
+        --stack-name ecr-repositories-stack
+    - echo "Repositories successfully deployed."
+
+    #-------------------------------------
+    # Pull/Push Images to ECR Repositories
+    #-------------------------------------
+    - |
+      aws ecr get-login-password --region $REGION | docker login \
+        --username AWS --password-stdin $ECR_REGISTRY
+    - docker pull public.ecr.aws/eks/aws-load-balancer-controller:v2.13.2
+    - |
+      docker tag public.ecr.aws/eks/aws-load-balancer-controller:v2.13.2 \
+        $ECR_REGISTRY/eks/aws-load-balancer-controller:v2.13.2
+    - docker push $ECR_REGISTRY/eks/aws-load-balancer-controller:v2.13.2
+
+    - docker pull webgoat/webgoat 
+    - |
+      docker tag docker.io/webgoat/webgoat \
+        $ECR_REGISTRY/webgoat
+    - docker push $ECR_REGISTRY/webgoat
 
 
 deploy-cloudformation-templates:
@@ -74,6 +117,13 @@ deploy-cloudformation-templates:
     - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-nlb.yml
     - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-service.yml
     - sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./kubernetes/web-app-ingress.yml
+    - sed -i "s|\\\${APPLICATION_NAME}|${APPLICATION_NAME}|g" ./kubernetes/web-app-deployment.yml
+    - sed -i "s|\\\${APPLICATION_NAME}|${APPLICATION_NAME}|g" ./kubernetes/web-app-nlb.yml
+    - sed -i "s|\\\${APPLICATION_NAME}|${APPLICATION_NAME}|g" ./kubernetes/web-app-service.yml
+    - sed -i "s|\\\${APPLICATION_NAME}|${APPLICATION_NAME}|g" ./kubernetes/web-app-ingress.yml
+    - sed -i "s|\\\${IMAGE_REGISTRY}|${IMAGE_REGISTRY}|g" ./kubernetes/web-app-deployment.yml
+    - sed -i "s|\\\${IMAGE_REPOSITORY}|${IMAGE_REPOSITORY}|g" ./kubernetes/web-app-deployment.yml
+    - sed -i "s|\\\${IMAGE_TAG}|${IMAGE_TAG}|g" ./kubernetes/web-app-deployment.yml
 
     # Get AWS ACCOUNT ID 
     - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -102,7 +152,6 @@ deploy-cloudformation-templates:
     #------------------------------------
     # Deploying the CloudFormation Stacks
     #------------------------------------
-
 
     # Deploy the S3 Bucket Stack
     - S3_BUCKET_EXISTS=$(aws s3 ls | grep -c $BUCKET_NAME || echo 0)
