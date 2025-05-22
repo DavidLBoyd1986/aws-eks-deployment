@@ -26,7 +26,8 @@ variables:
   BASTION_PASSWORD: $BASTION_PASSWORD
   PERSONAL_PUBLIC_IP: $PERSONAL_PUBLIC_IP
   ECR_REGISTRY: $ECR_REGISTRY
-  # Possible Future Additions:
+  # Kubernetes deployment info
+  APPLICATION_NAME: webgoat
   IMAGE_REGISTRY: $ECR_REGISTRY
   IMAGE_REPOSITORY: webgoat
   IMAGE_TAG: latest
