@@ -4,13 +4,17 @@ This branch deploys an actual Private Cluster. The Cluster only exists in Privat
 
 All required Private Cluster traffic occurs in the VPC, and uses Interface Endpoints to communicate with AWS Services.
 
-All outside traffic occurs from connecting VPCs using Transit Gateways.
+All outside traffic occurs from connecting VPCs using Transit Gateways. The Bastion Host VPC is connected to the EKS VPC with a Transit Gateway. So, the Bastion Host VPC can be used to interact with the cluster.
 
 The AWS-LB Controller will still create a Load Balancer, but it will only accept traffic from inside the VPC, as no outside traffic will be able to reach the created Load Balancer.
+
+All images have to be pulled from ECR (obviously) since there is no outside connections. The basic kubernetes pods in the kube-system namespace don't have to be hosted in ECR; EKS takes care of deploying those.
 
 <h2>Differences in this branch:</h2>
 
 - Fully Private Cluster - No Public Subnets in the VPC
+
+- Hosts Images in the ECR repositories as it is the only registry the cluster can access
 
 - Private API Endpoint
 
@@ -21,7 +25,5 @@ The AWS-LB Controller will still create a Load Balancer, but it will only accept
 - An S3 Bucket is created to copy the eks_deploy_script.sh to/from Bastion Host
 
 - Bastion Host VPC is connected to EKS VPC with a Transit Gateway
-    - The main branch connects them with a VPC Peering connection
-    - VPC Peering doesn't allow connections to the private endpoint from connected VPC.
 
 - Bastion Host deploys the EKS Cluster so it is given Cluster permissions since it created the Cluster

@@ -313,7 +313,7 @@ Resources:
         #  FromPort: 0 
         #  ToPort: 65535 
         #  CidrIp: !Ref VpcBlock
-        # Uncomment to use NodePort Services
+        # Uncomment to use NodePort Services - IMPORTANT - Might be required for private clusters
         #- IpProtocol: tcp
         #  FromPort: 30000
         #  ToPort: 32767

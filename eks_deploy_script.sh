@@ -120,7 +120,7 @@ else
         --set serviceAccount.create=false \
         --set serviceAccount.name=aws-load-balancer-controller \
         --set image.repository=${ECR_REGISTRY}/eks/aws-load-balancer-controller \
-        --set image.tag=:v2.13.2
+        --set image.tag=v2.13.2
     sleep 20
 fi
 
