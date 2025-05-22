@@ -5,7 +5,7 @@ Resources:
             EmptyOnDelete: false
             ImageScanningConfiguration:
                 ScanOnPush: true
-            RepositoryName: vulnerable-web-app
+            RepositoryName: webgoat
             RepositoryPolicyText:
                 {
                     "Version": "2012-10-17",
@@ -15,7 +15,7 @@ Resources:
                             "Effect": "Allow",
                             "Principal": {
                                 "AWS": [
-                                    !Sub "arn:aws:iam::${AWSAccountId}:root",
+                                    !Sub "arn:aws:iam::${AWS::AccountId}:root",
                                 ]
                             },
                             "Action": [
@@ -47,7 +47,7 @@ Resources:
                             "Effect": "Allow",
                             "Principal": {
                                 "AWS": [
-                                    !Sub "arn:aws:iam::${AWSAccountId}:root",
+                                    !Sub "arn:aws:iam::${AWS::AccountId}:root",
                                 ]
                             },
                             "Action": [
