@@ -6,7 +6,7 @@
 CLUSTER_NAME=EKSPrivateCluster
 KUBE_VERSION="1.32"
 KUBE_NAMESPACE=web-app
-KUBE_LOAD_BALANCER_TYPE=NLB # Must be (NLB || ALB)
+KUBE_LB_TYPE=${KUBE_LOAD_BALANCER_TYPE}
 REGION=us-east-1
 export HOME=/root
 # Get AWS ACCOUNT ID 
@@ -14,7 +14,7 @@ AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
 
 
-#--------------------------------------
+#-------------------------------------KUBE_LB_TYPE-
 # Deploying the Cluster and connections
 #--------------------------------------
 
@@ -155,7 +155,7 @@ kubectl get pods -n ${KUBE_NAMESPACE}
 # Deploying the EKS Services and AWS LBs
 #---------------------------------------
 
-if [ $KUBE_LOAD_BALANCER_TYPE == "NLB" ]; then
+if [ $KUBE_LB_TYPE == "NLB" ]; then
     # Create the NLB:
     kubectl apply -f /tmp/build_script_deployment/kubernetes/${KUBE_NAMESPACE}-nlb.yml
 
@@ -173,7 +173,7 @@ if [ $KUBE_LOAD_BALANCER_TYPE == "NLB" ]; then
     curl -v http://${NLB_DNS}:8080/WebGoat/login
 
     echo "Deployment Complete!"
-elif [ $KUBE_LOAD_BALANCER_TYPE == "ALB" ]; then
+elif [ $KUBE_LB_TYPE == "ALB" ]; then
     # Create the ALB:
     kubectl apply -f /tmp/build_script_deployment/kubernetes/${KUBE_NAMESPACE}-service.yml
     kubectl apply -f /tmp/build_script_deployment/kubernetes/${KUBE_NAMESPACE}-ingress.yml
@@ -194,5 +194,5 @@ elif [ $KUBE_LOAD_BALANCER_TYPE == "ALB" ]; then
     echo "Deployment Complete!"
 else
     echo "ERROR - No valid AWS Load Balancer selected in variable \
-        KUBE_LOAD_BALANCER_TYPE"
+        KUBE_LB_TYPE"
 fi

@@ -18,7 +18,7 @@ variables:
   CLUSTER_NAME: EKSPrivateCluster
   KUBE_VERSION: "1.32"
   KUBE_NAMESPACE: web-app
-  KUBE_LOAD_BALANCER_TYPE: NLB # Must be (NLB || ALB)
+  KUBE_LOAD_BALANCER_TYPE: ALB # Must be (NLB || ALB)
   REGION: $AWS_DEFAULT_REGION
   # Required CICD Variables:
   BUCKET_NAME: $BUCKET_NAME
@@ -107,11 +107,12 @@ build-image:
     - |
       aws ecr get-login-password --region $REGION | docker login \
         --username AWS --password-stdin $ECR_REGISTRY
+    # Below is where you would build the Image. I pull/push a test image instead
     - docker pull webgoat/webgoat 
     - |
       docker tag docker.io/webgoat/webgoat \
-        $ECR_REGISTRY/webgoat
-    - docker push $ECR_REGISTRY/webgoat
+        ${IMAGE_REGISTRY}/${IMAGE_REPOSITORY}:${IMAGE_TAG}
+    - docker push ${IMAGE_REGISTRY}/${IMAGE_REPOSITORY}:${IMAGE_TAG}
 
 
 deploy-cloudformation-templates:
@@ -173,6 +174,9 @@ deploy-cloudformation-templates:
     # Replace the variables in IaC files with the actual values:
     - sed -i "s|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g" ./IaC/eks_infrastructure_deployment.yml
     - sed -i "s|\\\$AMI_ID|${AMI_ID}|g" ./IaC/eks_infrastructure_deployment.yml
+    - sed -i "s|\\\${KUBE_LOAD_BALANCER_TYPE}|${KUBE_LOAD_BALANCER_TYPE}|g" eks_deploy_script.sh
+
+    
 
     # Copy/Compress the required cluster deploy files, compress the directory
     - cp -rp parameters/ IaC/ kubernetes/ eks_deploy_script.sh build_script_deployment/
