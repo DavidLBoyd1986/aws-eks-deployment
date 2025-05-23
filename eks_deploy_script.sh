@@ -6,11 +6,15 @@
 CLUSTER_NAME=EKSPrivateCluster
 KUBE_VERSION="1.32"
 KUBE_NAMESPACE=web-app
-KUBE_LOAD_BALANCER_TYPE=NLB # Must be (NLB || ALB)
+KUBE_LB_TYPE=${KUBE_LOAD_BALANCER_TYPE}
 REGION=us-east-1
+export HOME=/root
+# Get AWS ACCOUNT ID 
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
 
 
-#--------------------------------------
+#-------------------------------------KUBE_LB_TYPE-
 # Deploying the Cluster and connections
 #--------------------------------------
 
@@ -30,7 +34,6 @@ aws cloudformation deploy --stack-name eks-infrastructure-stack \
     --template-file /tmp/build_script_deployment/IaC/eks_infrastructure_deployment.yml \
     --capabilities CAPABILITY_NAMED_IAM --region $REGION
 
-# TODO - Below didn't fix it. Might delete it if long sleep command solves the problem
 # Wait for EKS cluster to become ACTIVE
 echo "Waiting for EKS cluster to become ACTIVE..."
 CLUSTER_STATUS="INACTIVE"
@@ -42,14 +45,16 @@ until [ $CLUSTER_STATUS = "ACTIVE" ]; do
 done
 echo "Cluster is ACTIVE."
 
-# Adding a really long sleep to verify if waiting for the Cluster is the issue
-sleep 600
-echo "The long sleep is over....."
-
 # Configure kubectl to connect to the Cluster
 kubectl version --client
 aws sts get-caller-identity
 aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME
+whoami
+cat /root/.kube/config
+cat /home/ec2-user/.kube/config
+env | grep AWS
+sleep 20
+kubectl cluster-info
 
 # Test kubectl configuration/connection to Cluster
 kubectl get all -A
@@ -71,9 +76,6 @@ else
     curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.12.0/docs/install/iam_policy.json
     aws iam create-policy --policy-name ${POLICY_NAME} --policy-document file://iam_policy.json
 fi
-
-# Get AWS ACCOUNT ID 
-AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
 # Check if the AWS Load Balancer Controller Service Account exists in kubernetes, and if not, create it:
 ALB_CONTROLLER_SA_EXISTS=$(kubectl get serviceaccount \
@@ -98,9 +100,6 @@ fi
 # Have to sleep to give time for everything to get created:
 sleep 30
 
-# Test the IAM Role was created automatically when creating the iamserviceaccount:
-aws iam get-role --role-name AWSLoadBalancerController
-
 # Test the ServiceAccount was created:
 kubectl get serviceaccount aws-load-balancer-controller --namespace kube-system --output yaml
 
@@ -118,7 +117,9 @@ else
     helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
         -n kube-system --set clusterName=$CLUSTER_NAME \
         --set serviceAccount.create=false \
-        --set serviceAccount.name=aws-load-balancer-controller
+        --set serviceAccount.name=aws-load-balancer-controller \
+        --set image.repository=${ECR_REGISTRY}/eks/aws-load-balancer-controller \
+        --set image.tag=v2.13.2
     sleep 20
 fi
 
@@ -153,7 +154,7 @@ kubectl get pods -n ${KUBE_NAMESPACE}
 # Deploying the EKS Services and AWS LBs
 #---------------------------------------
 
-if [ $KUBE_LOAD_BALANCER_TYPE == "NLB" ]; then
+if [ $KUBE_LB_TYPE == "NLB" ]; then
     # Create the NLB:
     kubectl apply -f /tmp/build_script_deployment/kubernetes/${KUBE_NAMESPACE}-nlb.yml
 
@@ -171,7 +172,7 @@ if [ $KUBE_LOAD_BALANCER_TYPE == "NLB" ]; then
     curl -v http://${NLB_DNS}:8080/WebGoat/login
 
     echo "Deployment Complete!"
-elif [ $KUBE_LOAD_BALANCER_TYPE == "ALB" ]; then
+elif [ $KUBE_LB_TYPE == "ALB" ]; then
     # Create the ALB:
     kubectl apply -f /tmp/build_script_deployment/kubernetes/${KUBE_NAMESPACE}-service.yml
     kubectl apply -f /tmp/build_script_deployment/kubernetes/${KUBE_NAMESPACE}-ingress.yml
@@ -192,5 +193,5 @@ elif [ $KUBE_LOAD_BALANCER_TYPE == "ALB" ]; then
     echo "Deployment Complete!"
 else
     echo "ERROR - No valid AWS Load Balancer selected in variable \
-        KUBE_LOAD_BALANCER_TYPE"
+        KUBE_LB_TYPE"
 fi
