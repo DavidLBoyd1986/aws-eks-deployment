@@ -1,5 +1,9 @@
 <h1>Private Cluster - Fully Private Cluster</h1>
 
+IMPORTANT:
+- Only the gitlab deployment method is supported for the fully Private Cluster
+- The Jenkinsfile and build_script.sh have NOT been updated for this Cluster
+
 This branch deploys an actual Private Cluster. The Cluster only exists in Private Subnets with no traffic able to enter or leave the subnets; There are NO Public Subnets in the VPC.
 
 All required Private Cluster traffic occurs in the VPC, and uses Interface Endpoints to communicate with AWS Services.
