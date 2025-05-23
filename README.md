@@ -6,7 +6,25 @@ IMPORTANT:
 
 This branch deploys a Cluster with a private API endpoint.
 
-The AWS-LB Controller will still create a Load Balancer that is open to any IP on the internet; however, the created Load Balancer can restrict traffic by simply updating the Security Group attached to it. Currently it only allows traffic to the port configured in the Kubernetes Service, so update that rule to restrict the source IPs.
+Applications launched on the Cluster can be public or private, depending on the annotation used in the Kubernetes resource that signals the AWS Load Balancer Controller to create the load balancer.
+
+The files kubernetes/web-app-ingress.yml and kubernetes/web-app-nlb.yml have the annotations that determine if the created ALB or NLB will be private or public.
+
+<h4>Below are the annotations for the kubernetes ingress that creates an ALB:</h4>
+    
+- alb.ingress.kubernetes.io/scheme: internet-facing
+    - Use for public access to the cluster
+- alb.ingress.kubernetes.io/scheme: internal
+    - Use for only allowing private access to the cluster
+
+<h4>Below are the annotations for the kubernetes service that creates an NLB:</h4>
+
+- service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    - Use for public access to the cluster
+- service.beta.kubernetes.io/aws-load-balancer-scheme: internal
+    - Use for only allowing private access to the cluster
+
+Can, also, restrict traffic by using the Security Groups attached to the created Load Balancer. Currently it only allows traffic to the port configured in the Kubernetes Service, so update that rule to restrict the source IPs who can access the application hosted on that port.
 
 <h2>Differences in this branch:</h2>
 

@@ -7,10 +7,11 @@ metadata:
     app: ${KUBE_NAMESPACE}-${APPLICATION_NAME}-ingress
   annotations:
     kubernetes.io/ingress.class: alb
-    alb.ingress.kubernetes.io/scheme: internal
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/backend-protocol: HTTP
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 8080}]'
+    alb.ingress.kubernetes.io/scheme: internet-facing # Use for public access to the cluster
+    #alb.ingress.kubernetes.io/scheme: internal # Use for only allowing private access to the cluster
 spec:
   ingressClassName: alb
   rules:

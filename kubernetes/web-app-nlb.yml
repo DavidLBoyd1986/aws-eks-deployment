@@ -6,7 +6,8 @@ metadata:
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-type: external
     service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
-    service.beta.kubernetes.io/aws-load-balancer-scheme: internal
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing  # Use for only allowing public access to the cluster
+    #service.beta.kubernetes.io/aws-load-balancer-scheme: internal  # Use for only allowing private access to the cluster
 spec:
   ports:
     - port: 8080
