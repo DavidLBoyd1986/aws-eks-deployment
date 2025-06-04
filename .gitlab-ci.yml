@@ -147,6 +147,15 @@ deploy-cloudformation-templates:
     - PUBLIC_IP_RANGE=${PERSONAL_PUBLIC_IP}/32
     - echo $PUBLIC_IP_RANGE
 
+    # Get AWS ACCOUNT ID 
+    - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+    # Get AMI ID for the aws-eks-optimized AMIs for the region and specific kubernetes version
+    - |
+      AMI_ID=$(aws ssm get-parameter \
+        --name /aws/service/eks/optimized-ami/${KUBE_VERSION}/amazon-linux-2/recommended/image_id \
+        --region ${REGION} --query 'Parameter.Value' --output text)
+
     # Replace variables in the CloudFormation files:
     - sed -i "s|\\\$BUCKET_NAME|${BUCKET_NAME}|g" ./parameters/s3_bucket_parameters.json
     - sed -i "s|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g" ./parameters/eks_vpc_parameters.json
@@ -201,15 +210,6 @@ deploy-cloudformation-templates:
     - cat ./kubernetes/web-app-ingress.yml
     - cat ./kubernetes/web-app-nlb.yml
     - cat ./kubernetes/web-app-service.yml
-
-    # Get AWS ACCOUNT ID 
-    - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
-    # Get AMI ID for the aws-eks-optimized AMIs for the region and specific kubernetes version
-    - |
-      AMI_ID=$(aws ssm get-parameter \
-        --name /aws/service/eks/optimized-ami/${KUBE_VERSION}/amazon-linux-2/recommended/image_id \
-        --region ${REGION} --query 'Parameter.Value' --output text)
 
     - echo "Variable preparation is complete."
 
