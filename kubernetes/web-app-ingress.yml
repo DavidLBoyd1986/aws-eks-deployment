@@ -10,7 +10,7 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internal
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/backend-protocol: HTTP
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 8080}]'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": ${APP_PORT}}]'
 spec:
   ingressClassName: alb
   rules:
@@ -22,4 +22,4 @@ spec:
               service:
                 name: "${KUBE_NAMESPACE}-${APPLICATION_NAME}-service"
                 port:
-                  number: 8080
+                  number: ${APP_PORT}

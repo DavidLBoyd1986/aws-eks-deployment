@@ -1,20 +1,25 @@
 #!/bin/bash
 
-# Variable Assigment:
+# IMPORTANT:
+# This is the script that runs off the Bastion Host to configure the cluster
 
+#-------------------
+# Variable Assigment
+#-------------------
 # Deployment specific variables
-CLUSTER_NAME=EKSPrivateCluster
-KUBE_VERSION="1.32"
-KUBE_NAMESPACE=web-app
-KUBE_LB_TYPE=${KUBE_LOAD_BALANCER_TYPE}
-REGION=us-east-1
+CLUSTER_NAME=${SCRIPT_CLUSTER_NAME}
+KUBE_VERSION=${SCRIPT_KUBE_VERSION}
+KUBE_NAMESPACE=${SCRIPT_KUBE_NAMESPACE}
+KUBE_LOAD_BALANCER_TYPE=${SCRIPT_KUBE_LOAD_BALANCER_TYPE}
+REGION=${SCRIPT_REGION}
+APP_PORT=${SCRIPT_APP_PORT}
 export HOME=/root
 # Get AWS ACCOUNT ID 
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
 
 
-#-------------------------------------KUBE_LB_TYPE-
+#--------------------------------------
 # Deploying the Cluster and connections
 #--------------------------------------
 
@@ -155,7 +160,7 @@ kubectl get pods -n ${KUBE_NAMESPACE}
 # Deploying the EKS Services and AWS LBs
 #---------------------------------------
 
-if [ $KUBE_LB_TYPE == "NLB" ]; then
+if [ $KUBE_LOAD_BALANCER_TYPE == "NLB" ]; then
     # Create the NLB:
     kubectl apply -f /tmp/build_script_deployment/kubernetes/${KUBE_NAMESPACE}-nlb.yml
 
@@ -170,10 +175,10 @@ if [ $KUBE_LB_TYPE == "NLB" ]; then
     sleep 20
 
     # Test the application is accessible via the NLB DNS. TODO - Create an actual test
-    curl -v http://${NLB_DNS}:8080/WebGoat/login
+    curl -v http://${NLB_DNS}:${APP_PORT}
 
     echo "Deployment Complete!"
-elif [ $KUBE_LB_TYPE == "ALB" ]; then
+elif [ $KUBE_LOAD_BALANCER_TYPE == "ALB" ]; then
     # Create the ALB:
     kubectl apply -f /tmp/build_script_deployment/kubernetes/${KUBE_NAMESPACE}-service.yml
     kubectl apply -f /tmp/build_script_deployment/kubernetes/${KUBE_NAMESPACE}-ingress.yml
@@ -189,10 +194,10 @@ elif [ $KUBE_LB_TYPE == "ALB" ]; then
     sleep 20
 
     # Test the application is accessible via the ALB DNS. TODO - Create an actual test
-    curl -v http://${ALB_DNS}:8080/WebGoat/login
+    curl -v http://${ALB_DNS}:${APP_PORT}
 
     echo "Deployment Complete!"
 else
     echo "ERROR - No valid AWS Load Balancer selected in variable \
-        KUBE_LB_TYPE"
+        KUBE_LOAD_BALANCER_TYPE"
 fi
