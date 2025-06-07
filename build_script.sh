@@ -2,21 +2,63 @@
 
 # Variable Assigment:
 
-# Deployment specific variables
+# Set as variables:
+REGION=us-east-1
+BASTION_USERNAME=$BASTION_USERNAME
+BASTION_PASSWORD=$BASTION_PASSWORD
+PERSONAL_PUBLIC_IP=$PERSONAL_PUBLIC_IP
+ECR_REGISTRY=$ECR_REGISTRY
+# Kubernetes variables
 CLUSTER_NAME=EKSPublicCluster
 KUBE_VERSION="1.32"
 KUBE_NAMESPACE=web-app
 KUBE_LOAD_BALANCER_TYPE=NLB # Must be (NLB || ALB)
-REGION=us-east-1
-# Required CICD Variables:
-    # ex: export PERSONAL_PUBLIC_IP="11.22.33.44"
-BASTION_USERNAME=$BASTION_USERNAME
-BASTION_PASSWORD=$BASTION_PASSWORD
-PERSONAL_PUBLIC_IP=$PERSONAL_PUBLIC_IP 
-# Possible Future Additions:
-#IMAGE_REGISTRY=
-#IMAGE_REPOSITORY=
-#IMAGE_TAG=
+APPLICATION_NAME=webgoat
+IMAGE_REGISTRY=$ECR_REGISTRY 
+IMAGE_REPOSITORY=webgoat
+IMAGE_TAG=latest
+APP_PORT=8080
+# Public Image Variables - This pipeline is pulling a public image to deploy
+PUBLIC_REGISTRY="docker.io"
+PUBLIC_IMAGE="webgoat/webgoat"
+PUBLIC_IMAGE_TAG=latest
+
+#----------------------
+# Deploy ECR Repository
+#----------------------
+
+echo "Deploying Elastic Container Repository...."
+
+# Replace variable in repo_app_deployment with IMAGE_REPOSITORY name
+sed -i "s|\\\${IMAGE_REPOSITORY}|${IMAGE_REPOSITORY}|g" ./IaC/repo_app_deployment.yml
+
+# Check if the repositories already exist
+ECR_REPOS=$(aws ecr describe-repositories \
+    --query "repositories[*].repositoryName" --output text)
+
+# Create the repository for your Application Image
+if [[ $ECR_REPOS == *$IMAGE_REPOSITORY* ]]; then
+    echo "The Repository: $IMAGE_REPOSITORY already exists. Skipping deployment...."
+else
+    aws cloudformation deploy \
+    --template-file ./IaC/repo_app_deployment.yml \
+    --stack-name ${IMAGE_REPOSITORY}-repository-stack
+    echo "The ${IMAGE_REPOSITORY} repository was successfully deployed."
+fi
+
+#------------
+# Build Image
+#------------
+
+# This pipeline doesn't build the image, so I just pull/push a test image
+aws ecr get-login-password --region $REGION | docker login \
+    --username AWS --password-stdin $ECR_REGISTRY
+# Below is where you would build the Image. I pull/push a test image instead
+docker pull ${PUBLIC_REGISTRY}/${PUBLIC_IMAGE}:${PUBLIC_IMAGE_TAG}
+
+docker tag ${PUBLIC_REGISTRY}/${PUBLIC_IMAGE}:${PUBLIC_IMAGE_TAG} \
+    ${IMAGE_REGISTRY}/${IMAGE_REPOSITORY}:${IMAGE_TAG}
+docker push ${IMAGE_REGISTRY}/${IMAGE_REPOSITORY}:${IMAGE_TAG}
 
 #--------------------------
 # Replace/Prepare variables
@@ -40,6 +82,14 @@ echo $HELM_VERSION
 PUBLIC_IP_RANGE=${PERSONAL_PUBLIC_IP}/32
 echo $PUBLIC_IP_RANGE
 
+# Get AWS ACCOUNT ID 
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+#Get AMI ID for the aws-eks-optimized AMIs for the region and specific kubernetes version
+AMI_ID=$(aws ssm get-parameter \
+    --name /aws/service/eks/optimized-ami/${KUBE_VERSION}/amazon-linux-2/recommended/image_id \
+    --region ${REGION} --query 'Parameter.Value' --output text)
+
 # Replace variables in the CloudFormation files:
 sed -i "s|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g" ./build_script_deployment/parameters/eks_vpc_parameters.json
 sed -i "s|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g" ./build_script_deployment/parameters/bh_infrastructure_parameters.json
@@ -54,22 +104,21 @@ sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./build_script_deployment/ku
 sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./build_script_deployment/kubernetes/web-app-ingress.yml
 sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./build_script_deployment/kubernetes/web-app-nlb.yml
 sed -i "s|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g" ./build_script_deployment/kubernetes/web-app-service.yml
-
-# Get AWS ACCOUNT ID 
-AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
-#Get AMI ID for the aws-eks-optimized AMIs for the region and specific kubernetes version
-AMI_ID=$(aws ssm get-parameter \
-    --name /aws/service/eks/optimized-ami/${KUBE_VERSION}/amazon-linux-2/recommended/image_id \
-    --region ${REGION} --query 'Parameter.Value' --output text)
+sed -i "s|\\\${IMAGE_REGISTRY}|${IMAGE_REGISTRY}|g" ./build_script_deployment/kubernetes/web-app-deployment.yml
+sed -i "s|\\\${IMAGE_REPOSITORY}|${IMAGE_REPOSITORY}|g" ./build_script_deployment/kubernetes/web-app-deployment.yml
+sed -i "s|\\\${IMAGE_TAG}|${IMAGE_TAG}|g" ./build_script_deployment/kubernetes/web-app-deployment.yml
+sed -i "s|\\\${APPLICATION_NAME}|${APPLICATION_NAME}|g" ./build_script_deployment/kubernetes/web-app-deployment.yml
+sed -i "s|\\\${APPLICATION_NAME}|${APPLICATION_NAME}|g" ./build_script_deployment/kubernetes/web-app-nlb.yml
+sed -i "s|\\\${APPLICATION_NAME}|${APPLICATION_NAME}|g" ./build_script_deployment/kubernetes/web-app-service.yml
+sed -i "s|\\\${APPLICATION_NAME}|${APPLICATION_NAME}|g" ./build_script_deployment/kubernetes/web-app-ingress.yml
+sed -i "s|\\\${APP_PORT}|${APP_PORT}|g" ./build_script_deployment/kubernetes/web-app-deployment.yml
+sed -i "s|\\\${APP_PORT}|${APP_PORT}|g" ./build_script_deployment/kubernetes/web-app-nlb.yml
+sed -i "s|\\\${APP_PORT}|${APP_PORT}|g" ./build_script_deployment/kubernetes/web-app-service.yml
+sed -i "s|\\\${APP_PORT}|${APP_PORT}|g" ./build_script_deployment/kubernetes/web-app-ingress.yml
 
 # Replace the variables ($CLUSTER_NAME) in other files with the actual values:
 sed -i "s|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g" ./build_script_deployment/IaC/eks_infrastructure_deployment.yml
 sed -i "s|\\\$AMI_ID|${AMI_ID}|g" ./build_script_deployment/IaC/eks_infrastructure_deployment.yml
-
-# Test the variables were replaced successfully
-cat ./parameters/bh_infrastructure_parameters.json
-cat ./parameters/eks_vpc_parameters.json
 
 echo "Variable preparation is complete."
 
@@ -217,9 +266,6 @@ else
     sleep 20
 fi
 
-# What until the Load Balancer is launched
-# I think sleeping for 20 seconds makes this check unnecessary.
-
 # Check if the AWS Load Balancer Controller is (finally) installed
 kubectl get all -n kube-system \
     --selector app.kubernetes.io/name=aws-load-balancer-controller
@@ -229,7 +275,7 @@ kubectl get all -n kube-system \
 #---------------------------------
 
 # If the namespace doesn't exist, then create it:
-NAMESPACE_EXISTS=$(kubectl get namespace web-app 2> /dev/null | grep -c web-app)
+NAMESPACE_EXISTS=$(kubectl get namespace ${KUBE_NAMESPACE} 2> /dev/null | grep -c ${KUBE_NAMESPACE})
 
 if [ $NAMESPACE_EXISTS -gt 0 ]; then
     echo "Namespace ${KUBE_NAMESPACE} exists.";
@@ -238,7 +284,7 @@ else
     kubectl create namespace ${KUBE_NAMESPACE}
 fi
 
-kubectl apply -f ./build_script_deployment/kubernetes/${KUBE_NAMESPACE}-deployment.yml
+kubectl apply -f ./build_script_deployment/kubernetes/web-app-deployment.yml
 
 # Run some test commands:
 kubectl get all -n ${KUBE_NAMESPACE}
@@ -250,7 +296,7 @@ kubectl get pods -n ${KUBE_NAMESPACE}
 
 if [ $KUBE_LOAD_BALANCER_TYPE == "NLB" ]; then
     # Create the NLB:
-    kubectl apply -f ./build_script_deployment/kubernetes/${KUBE_NAMESPACE}-nlb.yml
+    kubectl apply -f ./build_script_deployment/kubernetes/web-app-nlb.yml
 
     # Wait for deployment: TODO - Add an actual while loop to check
     sleep 180
@@ -262,14 +308,14 @@ if [ $KUBE_LOAD_BALANCER_TYPE == "NLB" ]; then
     echo $NLB_DNS
     sleep 20
 
-    # Test the application is accessible via the NLB DNS. TODO - Create an actual test
-    curl -v http://${NLB_DNS}:8080/WebGoat/login
+    # Test the application is accessible via the NLB DNS.
+    curl -v http://${NLB_DNS}:{APP_PORT}/WebGoat # This fails because needs path /WebGoat
 
     echo "Deployment Complete!"
 elif [ $KUBE_LOAD_BALANCER_TYPE == "ALB" ]; then
     # Create the ALB:
-    kubectl apply -f ./build_script_deployment/kubernetes/${KUBE_NAMESPACE}-service.yml
-    kubectl apply -f ./build_script_deployment/kubernetes/${KUBE_NAMESPACE}-ingress.yml
+    kubectl apply -f ./build_script_deployment/kubernetes/web-app-service.yml
+    kubectl apply -f ./build_script_deployment/kubernetes/web-app-ingress.yml
 
     # Wait for deployment: TODO - Add an actual while loop to check
     sleep 180
@@ -281,8 +327,8 @@ elif [ $KUBE_LOAD_BALANCER_TYPE == "ALB" ]; then
     echo $ALB_DNS
     sleep 20
 
-    # Test the application is accessible via the ALB DNS. TODO - Create an actual test
-    curl -v http://${ALB_DNS}:8080/WebGoat/login
+    # Test the application is accessible via the ALB DNS.
+    curl -v http://${ALB_DNS}:${APP_PORT} # This fails because needs path /WebGoat
 
     echo "Deployment Complete!"
 else
