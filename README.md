@@ -10,7 +10,7 @@ For external connections to the application on EKS, the deployment methods deplo
 - The private-cluster-endpoint branch deploys a cluster with a private endpoint, and the applications launched on the cluster are only available from the bastion hosts, but it can be changed to be accessible from any public ip.
 - The private-cluster-fully-private has no access outside the AWS VPCs; hence 'fully-private'.</b>
 
-See the section "Limiting Public Cluster traffic" below for a longer explanation.
+See the section "Public and Private Clusters" below for a longer explanation.
 
 See this documentation for an explanation of the difference between public/private API Endpoints:
 
