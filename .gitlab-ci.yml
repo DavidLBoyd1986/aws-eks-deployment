@@ -18,7 +18,6 @@ variables:
 
   # Set as CICD Variables:
   REGION: $AWS_DEFAULT_REGION
-  BUCKET_NAME: $BUCKET_NAME
   BASTION_USERNAME: $BASTION_USERNAME
   BASTION_PASSWORD: $BASTION_PASSWORD
   PERSONAL_PUBLIC_IP: $PERSONAL_PUBLIC_IP
@@ -27,9 +26,9 @@ variables:
   CLUSTER_NAME: EKSPublicCluster
   KUBE_VERSION: "1.32"
   KUBE_NAMESPACE: web-app
-  KUBE_LOAD_BALANCER_TYPE: NLB # Must be (NLB || ALB)
+  KUBE_LOAD_BALANCER_TYPE: ALB # Must be (NLB || ALB)
   APPLICATION_NAME: webgoat
-  IMAGE_REGISTRY: $ECR_REGISTRY # Set as a CICD Variable as well
+  IMAGE_REGISTRY: $ECR_REGISTRY 
   IMAGE_REPOSITORY: webgoat
   IMAGE_TAG: latest
   APP_PORT: 8080
@@ -347,7 +346,7 @@ deploy-application-to-eks:
         kubectl create namespace ${KUBE_NAMESPACE}
       fi
 
-    - kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-deployment.yml
+    - kubectl apply -f ./kubernetes/web-app-deployment.yml
 
     # Run some test commands:
     - kubectl get all -n ${KUBE_NAMESPACE}
@@ -373,7 +372,7 @@ deploy-nlb-for-application:
     - sed -i "s|\\\${APP_PORT}|${APP_PORT}|g" ./kubernetes/web-app-nlb.yml
 
     # Create the NLB:
-    - kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-nlb.yml
+    - kubectl apply -f ./kubernetes/web-app-nlb.yml
 
     # Wait for deployment: TODO - Add an actual while loop to check
     - sleep 180
@@ -415,8 +414,8 @@ deploy-alb-for-application:
     - sed -i "s|\\\${APP_PORT}|${APP_PORT}|g" ./kubernetes/web-app-ingress.yml
 
     # Create the ALB:
-    - kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-service.yml
-    - kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-ingress.yml
+    - kubectl apply -f ./kubernetes/web-app-service.yml
+    - kubectl apply -f ./kubernetes/web-app-ingress.yml
 
     # Wait for deployment: TODO - Add an actual while loop to check
     - sleep 180
