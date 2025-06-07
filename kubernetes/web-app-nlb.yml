@@ -1,17 +1,17 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: ${KUBE_NAMESPACE}-nlb-service
+  name: ${KUBE_NAMESPACE}-${APPLICATION_NAME}-nlb-service
   namespace: ${KUBE_NAMESPACE}
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-type: external
     service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
-    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internal
 spec:
   ports:
-    - port: 8080
-      targetPort: 8080
+    - port: ${APP_PORT}
+      targetPort: ${APP_PORT}
       protocol: TCP
   type: LoadBalancer
   selector:
-    app: ${KUBE_NAMESPACE}-webgoat
+    app: ${KUBE_NAMESPACE}-${APPLICATION_NAME}
