@@ -1,6 +1,6 @@
 <h1>EKS Cluster and Bastion Host Deployment</h1>
 
-This repository contains CloudFormation templates to launch an EKS Cluster in its own VPC, Bastion Hosts in a separate VPC, and a VPC Peering Connection to connect the two VPCS. It also contains the Kubernetes Resource yaml files to deploy an application (WebGoat) to the Cluster, and create an external connection to the application using an AWS Load Balancer Controller that can be used to automatically create an AWS NLB or AWS ALB depending on the Kubernetes resources that are created. Lastly, it contains multiple deployment methods: shell script, Jenkinsfile, and gitlab.ci file.
+This repository contains CloudFormation templates to launch an EKS Cluster in its own VPC, Bastion Hosts in a separate VPC, and a VPC Peering Connection to connect the two VPCS; the private-clusters use a Transit Gateway to connect the VPCs not a VPC Peering Connection. It also contains the Kubernetes Resource yaml files to deploy an application (WebGoat) to the Cluster, and create an external connection to the application using an AWS Load Balancer Controller that can be used to automatically create an AWS NLB or AWS ALB depending on the Kubernetes resources that are created. Lastly, it contains multiple deployment methods: shell script, Jenkinsfile, and gitlab.ci file.
 
 For external connections to the application on EKS, the deployment methods deploy an AWS Load Balancer Controller to the EKS Cluster so NLBs and ALBs will automatically be created when a Kubernetes Service/Ingress is created for an application. These AWS Load Balancers will automatically allow/route all public access to the applications/deployments they point to on EKS.
 
@@ -26,7 +26,7 @@ The 'private-cluster-fully-private' branch deploys a completely private cluster.
 
 <h4>Limiting Cluster Endpoint traffic</h4>
 
-The Bastion Hosts will be able to access the Cluster on any of the branches, as the "BastionHostInstanceRole" is trusted by the Cluster during deployment, and come with kubectl, helm, and eksctl installed; however, you will have to run the command below to configure kubectl to authenticate to the cluster.
+The Bastion Hosts will be able to access the Cluster on any of the branches, as the "BastionHostInstanceRole" is added to the configmap of the Cluster during deployment, and the bastion hosts have kubectl, helm, and eksctl installed; however, you will have to run the command below to configure kubectl to authenticate to the cluster.
 
     `aws eks update-kubeconfig --region $REGION --name $CLUSTER_NAME`
 
