@@ -8,6 +8,16 @@ pipeline {
         KUBE_VERSION = "1.32"
         KUBE_NAMESPACE = "web-app"
         KUBE_LOAD_BALANCER_TYPE = "NLB" // Must be NLB or ALB
+        //ECR_REGISTRY = SetInScript
+        APPLICATION_NAME = webgoat
+        //IMAGE_REGISTRY = $ECR_REGISTRY SetInScript
+        IMAGE_REPOSITORY = webgoat
+        IMAGE_TAG = latest
+        APP_PORT = 8080
+        // Public Image Variables - This pipeline is pulling a public image to deploy
+        PUBLIC_REGISTRY = docker.io
+        PUBLIC_IMAGE = webgoat/webgoat
+        PUBLIC_IMAGE_TAG = latest
     }
 
     stages {
@@ -40,6 +50,24 @@ pipeline {
                             returnStdout: true
                         ).trim()
 
+                        // Get AMI ID for the aws-eks-optimized AMIs for the region and specific kubernetes version
+                        def AMI_ID = sh (
+                            script: "aws ssm get-parameter \
+                                     --name /aws/service/eks/optimized-ami/${KUBE_VERSION}/amazon-linux-2/recommended/image_id \
+                                     --region ${REGION} --query 'Parameter.Value' --output text",
+                            returnStdout: true
+                        ).trim()
+
+                        def AWS_ACCOUNT_ID = sh (
+                            script: "aws sts get-caller-identity --query Account --output text",
+                            returnStdout: true
+                        ).trim()
+                        echo "AWS Account ID is ${AWS_ACCOUNT_ID}"
+
+                        // Normally set as CICD Variables, but I hate using Jenkins Secrets (kludge)
+                        def ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
+                        def IMAGE_REGISTRY = "${ECR_REGISTRY}"
+
                         // Replace the variables in the parameters.json file with the actual values:
                         sh """
                             sed -i 's|\\\$PUBLIC_IP_RANGE|${PUBLIC_IP_RANGE}|g' ./parameters/eks_vpc_parameters.json
@@ -57,25 +85,68 @@ pipeline {
                             sed -i 's|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g' ./kubernetes/web-app-nlb.yml
                             sed -i 's|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g' ./kubernetes/web-app-service.yml
                             sed -i 's|\\\${KUBE_NAMESPACE}|${KUBE_NAMESPACE}|g' ./kubernetes/web-app-ingress.yml
+                            sed -i "s|\\\${IMAGE_REGISTRY}|${IMAGE_REGISTRY}|g" ./kubernetes/web-app-deployment.yml
+                            sed -i "s|\\\${IMAGE_REPOSITORY}|${IMAGE_REPOSITORY}|g" ./kubernetes/web-app-deployment.yml
+                            sed -i "s|\\\${IMAGE_TAG}|${IMAGE_TAG}|g" ./kubernetes/web-app-deployment.yml
+                            sed -i "s|\\\${APPLICATION_NAME}|${APPLICATION_NAME}|g" ./kubernetes/web-app-deployment.yml
+                            sed -i "s|\\\${APPLICATION_NAME}|${APPLICATION_NAME}|g" ./kubernetes/web-app-nlb.yml
+                            sed -i "s|\\\${APPLICATION_NAME}|${APPLICATION_NAME}|g" ./kubernetes/web-app-service.yml
+                            sed -i "s|\\\${APPLICATION_NAME}|${APPLICATION_NAME}|g" ./kubernetes/web-app-ingress.yml
+                            sed -i "s|\\\${APP_PORT}|${APP_PORT}|g" ./kubernetes/web-app-deployment.yml
+                            sed -i "s|\\\${APP_PORT}|${APP_PORT}|g" ./kubernetes/web-app-nlb.yml
+                            sed -i "s|\\\${APP_PORT}|${APP_PORT}|g" ./kubernetes/web-app-service.yml
+                            sed -i "s|\\\${APP_PORT}|${APP_PORT}|g" ./kubernetes/web-app-ingress.yml
                         """
-
-                        // Get AMI ID for the aws-eks-optimized AMIs for the region and specific kubernetes version
-                        def AMI_ID = sh (
-                            script: "aws ssm get-parameter \
-                                     --name /aws/service/eks/optimized-ami/${KUBE_VERSION}/amazon-linux-2/recommended/image_id \
-                                     --region ${REGION} --query 'Parameter.Value' --output text",
-                            returnStdout: true
-                        ).trim()
 
                         // Replace the variables ($CLUSTER_NAME) in other files with the actual values:
                         sh """
                             sed -i 's|\\\$CLUSTER_NAME|${CLUSTER_NAME}|g' ./IaC/eks_infrastructure_deployment.yml
                             sed -i 's|\\\$AMI_ID|${AMI_ID}|g' ./IaC/eks_infrastructure_deployment.yml
+                            sed -i "s|\\\${IMAGE_REPOSITORY}|${IMAGE_REPOSITORY}|g" ./IaC/repo_app_deployment.yml
                         """
 
                         // Test the variables were replaced successfully
                         sh "cat ./parameters/bh_infrastructure_parameters.json"
                         sh "cat ./parameters/eks_vpc_parameters.json"
+
+                        //----------------------
+                        // Deploy ECR Repository
+                        //----------------------
+
+                        echo 'Deploying Elastic Container Repository....'
+
+                        // Check if the repositories already exist
+                        def ECR_REPOS = sh (
+                            script: "ECR_REPOS=$(aws ecr describe-repositories \
+                                        --query 'repositories[*].repositoryName' --output text)",
+                            returnStdout: true
+                        ).trim()
+                        def REPO_EXISTS = ECR_REPOS.contains(${IMAGE_REPOSITORY})
+
+                        // Create the repository for your Application Image
+                        if (REPO_EXISTS) {
+                            echo "The Repository: ${IMAGE_REPOSITORY} already exists. Skipping deployment...."
+                        } else {
+                            sh "aws cloudformation deploy \
+                                --template-file ./IaC/repo_app_deployment.yml \
+                                --stack-name ${IMAGE_REPOSITORY}-repository-stack"
+                            echo "The ${IMAGE_REPOSITORY} repository was successfully deployed."
+                        }
+
+                        //------------
+                        // Build Image
+                        //------------
+
+                        // This pipeline doesn't build the image, so I just pull/push a test image
+                        sh "aws ecr get-login-password --region ${REGION} | docker login \
+                            --username AWS --password-stdin ${ECR_REGISTRY}"
+                        // Below is where you would build the Image. I pull/push a test image instead
+                        sh "docker pull ${PUBLIC_REGISTRY}/${PUBLIC_IMAGE}:${PUBLIC_IMAGE_TAG}"
+
+                        sh "docker tag ${PUBLIC_REGISTRY}/${PUBLIC_IMAGE}:${PUBLIC_IMAGE_TAG} \
+                            ${IMAGE_REGISTRY}/${IMAGE_REPOSITORY}:${IMAGE_TAG}"
+
+                        sh "docker push ${IMAGE_REGISTRY}/${IMAGE_REPOSITORY}:${IMAGE_TAG}"
 
                         // ---------------------------------------------
                         // DEPLOY THE AWS RESOURCES USING CLOUDFORMATION
@@ -204,12 +275,6 @@ pipeline {
                             echo "The AWSLoadBalancerControllerIAMPolicy already exists. Skipping this step....."
                         }
 
-                        // Get AWSAccountId
-                        def AWSAccountId = sh (
-                            script: "aws sts get-caller-identity --query Account --output text",
-                            returnStdout: true
-                        ).trim()
-                        echo "AWS Account ID is ${AWSAccountId}"
 
                         // TODO: The below seems to work, but shows: "Error from server (notFound): serviceaccounts "aws-load-balancer-controller" not found"
                         // Detect if the "aws-load-balancer-controller" (Kubernetes Service Account) exists
@@ -239,7 +304,7 @@ pipeline {
                             sh "eksctl create iamserviceaccount --cluster=$CLUSTER_NAME \
                                 --namespace=kube-system --name=aws-load-balancer-controller \
                                 --role-name=AWSLoadBalancerControllerRole \
-                                --attach-policy-arn=arn:aws:iam::${AWSAccountId}:policy/AWSLoadBalancerControllerIAMPolicy \
+                                --attach-policy-arn=arn:aws:iam::${AWS_ACCOUNT_ID}:policy/AWSLoadBalancerControllerIAMPolicy \
                                 --override-existing-serviceaccounts --region $REGION --approve"
                         }
 
@@ -312,7 +377,7 @@ pipeline {
                         } else {
                             echo "Kubernetes namespace already exists. Skipping this step...."
                         }
-                        sh "kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-deployment.yml"
+                        sh "kubectl apply -f ./kubernetes/web-app-deployment.yml"
 
                         // Run some test commands
                         sh "kubectl get all -n ${KUBE_NAMESPACE}"
@@ -325,7 +390,7 @@ pipeline {
                         // Create the Kubernetes resources to create the KUBE_LOAD_BALANCER_TYPE
                         if (KUBE_LOAD_BALANCER_TYPE == "NLB") {
                             // Creates an NLB, and Kubernetes service for NLB to access Application Pods
-                            sh "kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-nlb.yml"
+                            sh "kubectl apply -f ./kubernetes/web-app-nlb.yml"
 
                             // Sleep to wait for deployment - Pipeline will fail if you don't wait
                             echo "Sleeping for 180 seconds..."
@@ -355,14 +420,13 @@ pipeline {
                             sh "sleep 10"
 
                             // Test the loadbalancer call
-                            // TODO - Change Image from WebGoat to one that used port 80 and returns 200 for '/'
-                            sh "curl -v http://${nlb_dns}:8080/WebGoat"
+                            sh "curl -v http://${nlb_dns}:${APP_PORT}/WebGoat" // /WebGoat required for test image
                         } else if (KUBE_LOAD_BALANCER_TYPE == "ALB"){
                             // Create the Kubernetes Service that allows ALB to access Application Pods
-                            sh "kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-service.yml"
+                            sh "kubectl apply -f ./kubernetes/web-app-service.yml"
 
                             // Create the Kubernetes Ingress that creates the ALB and allows external access through it.
-                            sh "kubectl apply -f ./kubernetes/${KUBE_NAMESPACE}-ingress.yml"
+                            sh "kubectl apply -f ./kubernetes/web-app-ingress.yml"
 
                             // Sleep to wait for deployment - Pipeline will fail if you don't wait
                             echo "Sleeping for 180 seconds..."
@@ -392,7 +456,7 @@ pipeline {
 
                             // Test the loadbalancer call
                             // TODO - Change Image from WebGoat to one that used port 80 and returns 200 for '/'
-                            sh "curl -v http://${alb_dns}:8080/WebGoat"
+                            sh "curl -v http://${alb_dns}:${APP_PORT}/WebGoat" // /WebGoat required for test image
                         } else {
                             echo "ERROR - Invalid KUBE_LOAD_BALANCER_TYPE selected. \
                                     It must be: ('NLB' || 'ALB')"
