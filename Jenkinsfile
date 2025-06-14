@@ -8,16 +8,16 @@ pipeline {
         KUBE_VERSION = "1.32"
         KUBE_NAMESPACE = "web-app"
         KUBE_LOAD_BALANCER_TYPE = "NLB" // Must be NLB or ALB
-        //ECR_REGISTRY = SetInScript
-        APPLICATION_NAME = webgoat
-        //IMAGE_REGISTRY = $ECR_REGISTRY SetInScript
-        IMAGE_REPOSITORY = webgoat
-        IMAGE_TAG = latest
+        APPLICATION_NAME = "webgoat"
+        IMAGE_REPOSITORY = "webgoat"
+        IMAGE_TAG = "latest"
         APP_PORT = 8080
         // Public Image Variables - This pipeline is pulling a public image to deploy
-        PUBLIC_REGISTRY = docker.io
-        PUBLIC_IMAGE = webgoat/webgoat
-        PUBLIC_IMAGE_TAG = latest
+        PUBLIC_REGISTRY = "docker.io"
+        PUBLIC_IMAGE = "webgoat/webgoat"
+        PUBLIC_IMAGE_TAG = "latest"
+        //ECR_REGISTRY and IMAGE_REGISTRY are set in the script
+        // Too lazy to set them as Jenkins Secrets (contains my aws account id)
     }
 
     stages {
