@@ -129,7 +129,8 @@ pipeline {
                         } else {
                             sh "aws cloudformation deploy \
                                 --template-file ./IaC/repo_app_deployment.yml \
-                                --stack-name ${IMAGE_REPOSITORY}-repository-stack"
+                                --stack-name ${IMAGE_REPOSITORY}-repository-stack \
+                                --region ${REGION}"
                             echo "The ${IMAGE_REPOSITORY} repository was successfully deployed."
                         }
 
