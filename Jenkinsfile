@@ -117,8 +117,8 @@ pipeline {
 
                         // Check if the repositories already exist
                         def ECR_REPOS = sh (
-                            script: "ECR_REPOS=$(aws ecr describe-repositories \
-                                        --query 'repositories[*].repositoryName' --output text)",
+                            script: "aws ecr describe-repositories \
+                                        --query 'repositories[*].repositoryName' --output text",
                             returnStdout: true
                         ).trim()
                         def REPO_EXISTS = ECR_REPOS.contains(${IMAGE_REPOSITORY})
