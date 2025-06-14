@@ -122,7 +122,7 @@ pipeline {
                                     --output text --region ${REGION}",
                             returnStdout: true
                         ).trim()
-                        def REPO_EXISTS = ECR_REPOS.contains(${IMAGE_REPOSITORY})
+                        def REPO_EXISTS = ECR_REPOS.contains(env.IMAGE_REPOSITORY)
 
                         // Create the repository for your Application Image
                         if (REPO_EXISTS) {
